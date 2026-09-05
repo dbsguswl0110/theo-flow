@@ -40,7 +40,10 @@ body {
 
 .home-stage {
   position: relative;
-  width: min(100%, 430px);
+  /* The stage always fills the available device width. The content cluster
+     stays compact through its own max-widths, so wide Fold screens do not
+     accidentally switch to the Mac layout. */
+  width: 100%;
   height: 100dvh;
   max-height: 960px;
   overflow: hidden;
@@ -556,7 +559,9 @@ body {
   float: right;
 }
 
-@media (min-width: 700px) {
+/* A wide Fold display is still a touch device. Only a fine pointer (MacBook
+   or desktop) should opt into the spacious desktop composition. */
+@media (min-width: 700px) and (pointer: fine) {
   .home-stage {
     width: min(94vw, 960px);
     max-height: 850px;
