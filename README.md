@@ -34,7 +34,7 @@ The browser keeps a localStorage fallback for offline/local Vite development and
 
 The repository includes a Capacitor Android shell under `android/`. The shell loads the public Cloudflare URL (`https://theo-flow.dbsguswl0110.workers.dev/`) instead of freezing a second copy of the web app inside the APK. This means normal UI/API releases deployed to Cloudflare are available in the installed app the next time it opens, without reinstalling the APK. Native-shell changes (permissions, plugins, or Android code) still require a new APK version.
 
-Build locally when Android Studio/SDK and Java 17 are installed:
+Build locally when Android Studio/SDK and Java 21 are installed:
 
 ```bash
 npm run android:build
