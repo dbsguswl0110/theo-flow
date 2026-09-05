@@ -5,3 +5,9 @@ vite.config.js
 vite.config.d.ts
 .wrangler/
 .dev.vars
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
