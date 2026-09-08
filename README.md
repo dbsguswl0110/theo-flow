@@ -37,9 +37,11 @@ The browser caches the last synced records in localStorage and refreshes from th
 
 **Access boundary:** this V1 uses one shared workspace, with no login or per-user access control. Anyone able to access its URL/API can read or modify that workspace. Do not store sensitive personal or business information until authentication is added.
 
-## Galaxy Android APK
+## Galaxy Android APK and Fold widget
 
-The repository includes a Capacitor Android shell under `android/`. The shell loads the public Cloudflare URL (`https://theo-flow.dbsguswl0110.workers.dev/`) instead of freezing a second copy of the web app inside the APK. This means normal UI/API releases deployed to Cloudflare are available in the installed app the next time it opens, without reinstalling the APK. Native-shell changes (permissions, plugins, or Android code) still require a new APK version.
+The repository includes a Capacitor Android shell under `android/`. The shell loads the public Cloudflare URL (`https://theo-flow.dbsguswl0110.workers.dev/`) instead of freezing a second copy of the web app inside the APK. This means normal UI/API releases deployed to Cloudflare are available in the installed app the next time it opens, without reinstalling the APK.
+
+The native shell now registers a Galaxy-compatible Android Home Screen widget. Its large/resizable layout shows open Todo/Task items on the left and the current month's calendar on the right; tapping it opens TEO. The widget reads `GET /api/items` directly and does not create a second widget database. It refreshes on the Android widget schedule and displays a small sync status. The app label and launcher artwork are TEO. Because the widget and launcher are native Android changes, this release requires installing the newly built APK once.
 
 Build locally when Android Studio/SDK and Java 21 are installed:
 
@@ -48,6 +50,8 @@ npm run android:build
 ```
 
 The installable debug APK is written to `android/app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions also builds this APK on every push to `main` and publishes it as an `android-debug-apk` workflow artifact.
+
+This environment does not contain a Java runtime, so the APK is built by the repository workflow rather than locally. Open the latest successful GitHub Actions run and download its `android-debug-apk` artifact.
 
 ## Cloudflare setup
 

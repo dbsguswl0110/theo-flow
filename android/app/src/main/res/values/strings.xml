@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Theo Flow</string>
-    <string name="title_activity_main">Theo Flow</string>
+    <string name="app_name">TEO</string>
+    <string name="title_activity_main">TEO</string>
     <string name="package_name">com.theo.flow</string>
     <string name="custom_url_scheme">com.theo.flow</string>
 </resources>
