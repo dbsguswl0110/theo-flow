@@ -1,149 +1,328 @@
-import { AnimatePresence, motion } from "framer-motion";
-import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
 import FloatingTheo from "./components/FloatingTheo";
 import MemoPad from "./components/MemoPad";
+import Startup from "./components/Startup";
 import CalendarView from "./components/CalendarView";
 import ItemDetail from "./components/ItemDetail";
-import { createItemRemote, loadItems, loadItemsRemote, saveItems, updateItemRemote } from "./lib/storage";
+import Collection from "./components/Collection";
+import {
+  createItemRemote,
+  loadItems,
+  loadItemsRemote,
+  saveItems,
+  updateItemRemote,
+} from "./lib/storage";
 import type { CaptureItem, DraftItem, ItemType } from "./types";
 
-function todayString() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-const emptyDraft = (): DraftItem => ({
-  title: "",
-  content: "",
-  startDate: todayString(),
-  dueDate: null
-});
-
 export default function App() {
-  const [items, setItems] = useState<CaptureItem[]>(() => loadItems());
-  const [remote, setRemote] = useState(false);
-  const [draft] = useState<DraftItem>(() => emptyDraft());
+  const [items, setItems] = useState<CaptureItem[]>(loadItems);
   const [focused, setFocused] = useState(false);
   const [toast, setToast] = useState("");
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [selected, setSelected] = useState<CaptureItem | null>(null);
+  const [accepted, setAccepted] = useState("");
+  const [screen, setScreen] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [intro, setIntro] = useState(true);
-
+  const [layout, setLayout] = useState(
+    () => localStorage.getItem("theo-layout") || "auto",
+  );
+  const [quiet, setQuiet] = useState(
+    () => localStorage.getItem("theo-quiet") === "true",
+  );
+  const reduce = useReducedMotion();
+  const [size, setSize] = useState({ w: innerWidth, h: innerHeight });
+  const stage = useRef<HTMLDivElement>(null);
+  const pending = useRef(0),
+    revision = useRef(0);
+  const [sync, setSync] = useState("연결 중");
+  const [origin, setOrigin] = useState("50% 87%");
+  const toastTimer = useRef<number>();
+  const noMotion = quiet || Boolean(reduce);
+  const expanded =
+    layout === "expanded" ||
+    (layout === "auto" && size.w >= 680 && size.w / size.h > 0.78);
+  const finishIntro = useCallback(() => setIntro(false), []);
+  const notify = (message: string) => {
+    setToast(message);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => {
+      setToast("");
+      setAccepted("");
+    }, 2300);
+  };
+  useEffect(() => {
+    if (reduce) setIntro(false);
+  }, [reduce]);
+  useEffect(() => {
+    const observer = new ResizeObserver(([entry]) =>
+      setSize({ w: entry.contentRect.width, h: entry.contentRect.height }),
+    );
+    if (stage.current) observer.observe(stage.current);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     saveItems(items);
   }, [items]);
-
+  useEffect(() => {
+    localStorage.setItem("theo-layout", layout);
+    localStorage.setItem("theo-quiet", String(quiet));
+  }, [layout, quiet]);
   useEffect(() => {
     let alive = true;
-    loadItemsRemote().then((remoteItems) => {
-      if (!alive || !remoteItems) return;
-      setItems(remoteItems);
-      setRemote(true);
-    });
-    return () => { alive = false; };
+    const refresh = async () => {
+      if (pending.current || document.hidden) return;
+      const before = revision.current,
+        data = await loadItemsRemote();
+      if (!alive || pending.current || before !== revision.current) return;
+      if (data) {
+        setItems(data);
+        setSync("동기화됨");
+      } else setSync("연결 확인 필요");
+    };
+    void refresh();
+    const interval = window.setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    return () => {
+      alive = false;
+      clearInterval(interval);
+      window.removeEventListener("focus", refresh);
+      clearTimeout(toastTimer.current);
+    };
   }, []);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setIntro(false), 2100);
-    return () => window.clearTimeout(timer);
-  }, []);
-
-  function register(type: ItemType, memo: DraftItem) {
+  async function register(type: ItemType, draft: DraftItem) {
     const now = new Date().toISOString();
     const item: CaptureItem = {
+      ...draft,
       id: crypto.randomUUID(),
       type,
-      title: memo.title.trim(),
-      content: memo.content.trim(),
-      startDate: memo.startDate || todayString(),
-      dueDate: memo.dueDate,
+      title: draft.title.trim(),
+      content: draft.content.trim(),
       completed: false,
       createdAt: now,
       updatedAt: now,
-      photos: type === "note" ? [] : undefined,
-      subtasks: type === "todo" ? memo.content.split(/\n/).map((line, index) => ({ id: `${crypto.randomUUID()}-${index}`, title: line.replace(/^\s*(?:□|-|•)\s*/, "").trim() }).title).filter(Boolean).map((title) => ({ id: crypto.randomUUID(), title, completed: false })) : undefined
+      photos: [],
+      subtasks: [],
     };
-
-    setItems((prev) => [item, ...prev]);
-    if (remote) void createItemRemote(item);
-    setFocused(false);
-
-    const text = type === "note" ? "Note registered" : type === "task" ? "Task registered" : "Todo registered";
-    setToast(text);
-    window.setTimeout(() => setToast(""), 900);
+    pending.current++;
+    revision.current++;
+    try {
+      const ok = await createItemRemote(item);
+      if (!ok) {
+        setSync("연결 확인 필요");
+        return false;
+      }
+      setItems((prev) => [item, ...prev]);
+      setSync("동기화됨");
+      setAccepted(type === "todo" && expanded ? "project" : type);
+      notify(
+        type === "note"
+          ? "노트에 메모가 등록되었습니다."
+          : type === "task"
+            ? "태스크가 등록되었습니다."
+            : "프로젝트 Todo가 등록되었습니다.",
+      );
+      return true;
+    } finally {
+      pending.current--;
+    }
   }
-
-  function saveItem(updated: CaptureItem) {
-    setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-    if (remote) void updateItemRemote(updated);
-    setSelected(updated);
+  async function saveItem(item: CaptureItem): Promise<boolean> {
+    pending.current++;
+    revision.current++;
+    try {
+      const updated = { ...item, updatedAt: new Date().toISOString() };
+      if (!(await updateItemRemote(updated))) {
+        notify("저장하지 못했어요. 연결을 확인해주세요.");
+        return false;
+      }
+      setItems((prev) => prev.map((i) => (i.id === item.id ? updated : i)));
+      return true;
+    } finally {
+      pending.current--;
+    }
   }
-
-  const counts = useMemo(() => ({
-    note: items.filter((i) => i.type === "note").length,
-    task: items.filter((i) => i.type === "task").length,
-    todo: items.filter((i) => i.type === "todo").length
-  }), [items]);
-
+  function openCalendar() {
+    const a = stage.current?.getBoundingClientRect(),
+      b = stage.current
+        ?.querySelector('[data-target="calendar"]')
+        ?.getBoundingClientRect();
+    if (a && b)
+      setOrigin(`${b.x + b.width / 2 - a.x}px ${b.y + b.height / 2 - a.y}px`);
+    setScreen("calendar");
+  }
+  const selected = items.find((i) => i.id === selectedId);
+  const visible = items.filter((i) => !i.deletedAt);
   return (
     <main className="app-shell">
-      <div className="home-stage">
+      <div
+        ref={stage}
+        className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""}`}
+      >
         <div className="wallpaper" />
-
-        <FloatingTheo label="TODO" className="todo-position" />
-        <FloatingTheo label="NOTE" className="note-position" />
-        <FloatingTheo label="TASK" className="task-position" />
-        <FloatingTheo
-          label="CALENDAR"
-          className="calendar-position"
-          onClick={() => setCalendarOpen(true)}
-        />
-
-        {focused && <button className="focus-overlay" aria-label="Close focus" onClick={() => setFocused(false)} />}
-
-        <MemoPad
-          initialValue={draft}
-          focused={focused}
-          onFocus={() => setFocused(true)}
-          onBlurFocus={() => setFocused(false)}
-          onRegister={register}
-        />
-
-        <div className="mini-counter" aria-hidden="true">
-          <span>N {counts.note}</span>
-          <span>T {counts.task}</span>
-          <span>P {counts.todo}</span>
-        </div>
-
-        <AnimatePresence>
-          {toast && <div className="toast">{toast}</div>}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {calendarOpen && (
-            <CalendarView
-              items={items}
-              onClose={() => setCalendarOpen(false)}
-              onSelect={(item) => setSelected(item)}
+        <header className="utility-bar">
+          <span className="wordmark">
+            theo flow <small>생각을 담는 작은 공간</small>
+          </span>
+          <nav aria-label="메뉴">
+            <button onClick={() => setScreen("trash")}>Trash</button>
+            <button onClick={() => setScreen("settings")}>Setting</button>
+          </nav>
+        </header>
+        <div className="spatial-home">
+          <FloatingTheo
+            kind="note"
+            label="Note"
+            className="note-position"
+            quiet={noMotion}
+            accepted={accepted === "note"}
+            onClick={() => setScreen("note")}
+          />
+          <FloatingTheo
+            kind="task"
+            label="Task"
+            className="task-position"
+            quiet={noMotion}
+            accepted={accepted === "task"}
+            onClick={() => setScreen("task")}
+          />
+          <FloatingTheo
+            kind="todo"
+            label="Todo"
+            className="todo-position"
+            quiet={noMotion}
+            accepted={accepted === "todo"}
+            onClick={() => setScreen(expanded ? "todos" : "project")}
+          />
+          {expanded && (
+            <FloatingTheo
+              kind="project"
+              label="Project"
+              className="project-position"
+              quiet={noMotion}
+              accepted={accepted === "project"}
+              onClick={() => setScreen("project")}
             />
           )}
-        </AnimatePresence>
-
+          <FloatingTheo
+            kind="calendar"
+            label="Calendar"
+            className="calendar-position"
+            quiet={noMotion}
+            accepted={false}
+            onClick={openCalendar}
+          />
+          {focused && (
+            <button
+              className="focus-overlay"
+              aria-label="작성 모드 닫기"
+              onClick={() => {
+                if (document.activeElement instanceof HTMLElement)
+                  document.activeElement.blur();
+                setFocused(false);
+              }}
+            />
+          )}
+          <MemoPad
+            active={!intro}
+            focused={focused}
+            onFocus={() => setFocused(true)}
+            onBlurFocus={() => setFocused(false)}
+            onRegister={register}
+            quiet={noMotion}
+          />
+        </div>
+        <footer className="home-caption">
+          적고, 가볍게 보내세요.<span>← Note · ↑ Project Todo · Task →</span>
+        </footer>
         <AnimatePresence>
-          {selected && (
-            <ItemDetail
-              item={selected}
-              onClose={() => setSelected(null)}
+          {toast && (
+            <motion.div
+              role="status"
+              className="toast"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+            >
+              {toast}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {screen === "calendar" && (
+            <CalendarView
+              items={visible}
+              onClose={() => setScreen("")}
+              onSelect={(i) => setSelectedId(i.id)}
+              origin={origin}
+              quiet={noMotion}
+            />
+          )}
+          {["note", "task", "project", "todos", "trash"].includes(screen) && (
+            <Collection
+              kind={screen}
+              items={items}
+              onClose={() => setScreen("")}
+              onSelect={(i) => setSelectedId(i.id)}
               onSave={saveItem}
             />
           )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {intro && <motion.div className="intro-screen" initial={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: .45 }} aria-hidden="true">
-            <motion.div className="intro-jelly" initial={{ y: 130, scale: .35 }} animate={{ y: -40, scale: [ .35, .62, 1, .78, 1 ] }} transition={{ duration: 1.3, ease: [ .22, 1, .36, 1 ] }} />
-            <motion.div className="intro-rays" initial={{ opacity: 0, scale: .35 }} animate={{ opacity: [0, 1, 0], scale: [ .35, 1, 1.8 ] }} transition={{ delay: 1.15, duration: .85 }} />
-            <motion.span initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.2 }} >Write · Swipe · Organise</motion.span>
-          </motion.div>}
+          {screen === "settings" && (
+            <motion.section
+              className="panel settings-panel"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <header className="panel-header">
+                <button aria-label="설정 닫기" onClick={() => setScreen("")}>
+                  ←
+                </button>
+                <h1>Setting</h1>
+              </header>
+              <label className="setting-row">
+                화면 배치
+                <select
+                  value={layout}
+                  onChange={(e) => setLayout(e.target.value)}
+                >
+                  <option value="auto">화면에 맞게 자동</option>
+                  <option value="folded">접힌 화면 · 십자형</option>
+                  <option value="expanded">펼친 화면 · 양쪽 독</option>
+                </select>
+              </label>
+              <label className="setting-row">
+                움직임 줄이기
+                <input
+                  type="checkbox"
+                  checked={quiet}
+                  onChange={(e) => setQuiet(e.target.checked)}
+                />
+              </label>
+              <p>데이터 상태: {sync}</p>
+              <p className="muted">
+                Note · Task · Project Todo는 같은 캘린더에 모입니다. Todo
+                독에서는 프로젝트의 하위 할 일을 확인할 수 있어요.
+              </p>
+              <button
+                className="secondary-btn"
+                onClick={() => {
+                  setScreen("");
+                  setIntro(true);
+                }}
+              >
+                시작 애니메이션 다시 보기
+              </button>
+            </motion.section>
+          )}
+          {selected && (
+            <ItemDetail
+              key={selected.id}
+              item={selected}
+              onClose={() => setSelectedId(null)}
+              onSave={saveItem}
+            />
+          )}
+          {intro && <Startup onDone={finishIntro} />}
         </AnimatePresence>
       </div>
     </main>

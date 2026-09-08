@@ -1,96 +1,126 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import type { CaptureItem, ItemType } from "../types";
 import { deadlineColor, deadlineProgress } from "../lib/deadlineColor";
-
-type Props = {
+import { dayKey } from "../lib/dates";
+export default function CalendarView({
+  items,
+  onClose,
+  onSelect,
+  origin,
+  quiet,
+}: {
   items: CaptureItem[];
   onClose: () => void;
-  onSelect: (item: CaptureItem) => void;
-};
-
-function monthLabel(date: Date) {
-  return date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-}
-
-function firstGridDate(month: Date) {
-  const first = new Date(month.getFullYear(), month.getMonth(), 1);
-  const day = first.getDay();
-  const mondayIndex = (day + 6) % 7;
-  const grid = new Date(first);
-  grid.setDate(first.getDate() - mondayIndex);
-  return grid;
-}
-
-function formatDayKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-export default function CalendarView({ items, onClose, onSelect }: Props) {
+  onSelect: (i: CaptureItem) => void;
+  origin: string;
+  quiet: boolean;
+}) {
   const [month, setMonth] = useState(() => new Date());
   const [filter, setFilter] = useState<ItemType | "all">("all");
-
   const days = useMemo(() => {
-    const start = firstGridDate(month);
-    return Array.from({ length: 42 }, (_, i) => {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
+    const first = new Date(month.getFullYear(), month.getMonth(), 1);
+    first.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+    return Array.from({ length: 42 }, (_, n) => {
+      const d = new Date(first);
+      d.setDate(first.getDate() + n);
       return d;
     });
   }, [month]);
-
-  const visibleItems = items.filter((item) => filter === "all" || item.type === filter);
-
+  const visible = items.filter((i) => filter === "all" || filter === i.type);
   return (
     <motion.section
-      className="calendar-screen"
-      initial={{ clipPath: "circle(24px at 50% 92%)", opacity: 0.6 }}
-      animate={{ clipPath: "circle(150% at 50% 50%)", opacity: 1 }}
-      exit={{ clipPath: "circle(24px at 50% 92%)", opacity: 0 }}
-      transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+      className="panel calendar-screen"
+      initial={{ clipPath: `circle(20px at ${origin})`, opacity: 0.5 }}
+      animate={{ clipPath: `circle(150% at ${origin})`, opacity: 1 }}
+      exit={{ clipPath: `circle(20px at ${origin})`, opacity: 0 }}
+      transition={{ duration: quiet ? 0.1 : 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
-      <header className="calendar-header">
-        <button type="button" onClick={onClose}>←</button>
-        <strong>{monthLabel(month)}</strong>
+      <header className="panel-header">
+        <button aria-label="캘린더 닫기" onClick={onClose}>
+          ←
+        </button>
+        <h1>
+          {month.toLocaleDateString("en", { month: "long", year: "numeric" })}
+        </h1>
         <div className="month-actions">
-          <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>‹</button>
-          <button type="button" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>›</button>
+          <button
+            aria-label="이전 달"
+            onClick={() =>
+              setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))
+            }
+          >
+            ‹
+          </button>
+          <button
+            aria-label="다음 달"
+            onClick={() =>
+              setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))
+            }
+          >
+            ›
+          </button>
         </div>
       </header>
-
+      <p className="muted">생각과 할 일이 만나는 시간</p>
       <div className="weekday-row">
-        {["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((d) => <span key={d}>{d}</span>)}
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+          <span key={d}>{d}</span>
+        ))}
       </div>
-
-      <div className="calendar-grid">
-        {days.map((day) => {
-          const key = formatDayKey(day);
-          const sameMonth = day.getMonth() === month.getMonth();
-          const dayItems = visibleItems.filter((item) => {
-            const start = item.startDate;
-            const due = item.dueDate ?? item.startDate;
-            return key >= start && key <= due;
-          });
-
+      <div className="calendar-weeks">
+        {Array.from({ length: 6 }, (_, w) => {
+          const week = days.slice(w * 7, w * 7 + 7),
+            keys = week.map(dayKey);
+          const spanning = visible.filter(
+            (i) =>
+              i.startDate <= keys[6] && (i.dueDate || i.startDate) >= keys[0],
+          );
           return (
-            <div className={`calendar-day ${sameMonth ? "" : "calendar-day--muted"}`} key={key}>
-              <span className="day-number">{day.getDate()}</span>
-              <div className="day-bars">
-                {dayItems.slice(0, 3).map((item) => {
-                  const color = item.type === "note"
-                    ? "#D8C9B8"
-                    : deadlineColor(deadlineProgress(item.startDate, item.dueDate));
-
+            <div className="calendar-week" key={w}>
+              <div className="week-dates">
+                {week.map((d) => (
+                  <div
+                    key={dayKey(d)}
+                    className={`calendar-day ${d.getMonth() !== month.getMonth() ? "muted" : ""}`}
+                  >
+                    <span className={dayKey(d) === dayKey() ? "today" : ""}>
+                      {d.getDate()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="week-events">
+                {spanning.map((i, lane) => {
+                  const start = Math.max(
+                    0,
+                    keys.findIndex((k) => k >= i.startDate),
+                  );
+                  const end = keys.reduce(
+                    (last, k, n) =>
+                      k <= (i.dueDate || i.startDate) ? n : last,
+                    0,
+                  );
                   return (
                     <button
-                      type="button"
                       className="calendar-bar"
-                      key={item.id}
-                      style={{ background: color }}
-                      title={item.title || item.type}
-                      onClick={() => onSelect(item)}
+                      key={i.id}
+                      onClick={() => onSelect(i)}
+                      title={`${i.title}: ${i.startDate} → ${i.dueDate || i.startDate}`}
+                      style={{
+                        gridColumn: `${start + 1} / ${end + 2}`,
+                        gridRow: lane + 1,
+                        background:
+                          i.type === "note"
+                            ? "#e4d5c8"
+                            : deadlineColor(
+                                deadlineProgress(i.startDate, i.dueDate),
+                              ),
+                        opacity: i.completed ? 0.5 : 1,
+                        borderRadius: `${i.startDate < keys[0] ? "0" : "8px"} ${(i.dueDate || i.startDate) > keys[6] ? "0" : "8px"} ${(i.dueDate || i.startDate) > keys[6] ? "0" : "8px"} ${i.startDate < keys[0] ? "0" : "8px"}`,
+                      }}
                     >
-                      {item.title || item.type}
+                      {i.title}
                     </button>
                   );
                 })}
@@ -99,16 +129,20 @@ export default function CalendarView({ items, onClose, onSelect }: Props) {
           );
         })}
       </div>
-
       <nav className="calendar-tabs">
-        {(["todo", "task", "note"] as ItemType[]).map((type) => (
+        {(["all", "todo", "task", "note"] as const).map((t) => (
           <button
-            type="button"
-            className={filter === type ? "active" : ""}
-            key={type}
-            onClick={() => setFilter(filter === type ? "all" : type)}
+            key={t}
+            className={filter === t ? "active" : ""}
+            onClick={() => setFilter(t)}
           >
-            {type[0].toUpperCase() + type.slice(1)}
+            {t === "all"
+              ? "All"
+              : t === "todo"
+                ? "Todo"
+                : t === "task"
+                  ? "Task"
+                  : "Note"}
           </button>
         ))}
       </nav>

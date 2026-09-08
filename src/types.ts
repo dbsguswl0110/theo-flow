@@ -16,6 +16,7 @@ export type CaptureItem = {
   completed: boolean;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
   photos?: (string | { id: string; fileName?: string; file_name?: string })[];
   subtasks?: Subtask[];
 };

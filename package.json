@@ -4,6 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "test": "playwright test tests/flow.spec.ts",
+    "test:storage": "node tests/api-smoke.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
@@ -23,6 +25,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.6.9",
+    "@playwright/test": "^1.63.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",

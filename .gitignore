@@ -5,6 +5,9 @@ vite.config.js
 vite.config.d.ts
 .wrangler/
 .dev.vars
+test-results/
+playwright-report/
+*.apk
 android/.gradle/
 android/build/
 android/app/build/

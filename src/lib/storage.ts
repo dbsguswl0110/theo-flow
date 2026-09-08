@@ -9,7 +9,8 @@ function normalise(raw: any[]): CaptureItem[] {
     dueDate: item.dueDate ?? item.due_date ?? null,
     createdAt: item.createdAt ?? item.created_at ?? new Date().toISOString(),
     updatedAt: item.updatedAt ?? item.updated_at ?? new Date().toISOString(),
-    subtasks: item.subtasks ?? item.subTodos ?? []
+    subtasks: item.subtasks ?? item.subTodos ?? [],
+    deletedAt: item.deletedAt ?? item.deleted_at ?? null
   }));
 }
 
