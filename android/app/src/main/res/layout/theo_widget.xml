@@ -14,8 +14,8 @@
     </LinearLayout>
     <LinearLayout android:id="@+id/widget_content" android:layout_width="match_parent" android:layout_height="0dp"
         android:layout_weight="1" android:orientation="horizontal" android:gravity="top">
-        <LinearLayout android:id="@+id/widget_tasks" android:layout_width="34%" android:layout_height="match_parent"
-            android:orientation="vertical" android:paddingEnd="8dp"/>
+        <LinearLayout android:id="@+id/widget_tasks" android:layout_width="0dp" android:layout_height="match_parent"
+            android:layout_weight="0.34" android:orientation="vertical" android:paddingEnd="8dp"/>
         <LinearLayout android:id="@+id/widget_calendar" android:layout_width="0dp" android:layout_height="match_parent"
             android:layout_weight="1" android:orientation="vertical">
             <TextView android:id="@+id/widget_weekdays" android:layout_width="match_parent" android:layout_height="wrap_content"
