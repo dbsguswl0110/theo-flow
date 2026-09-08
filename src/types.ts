@@ -4,6 +4,9 @@ export type Subtask = {
   id: string;
   title: string;
   completed: boolean;
+  content?: string;
+  startDate?: string;
+  dueDate?: string | null;
 };
 
 export type CaptureItem = {
@@ -17,6 +20,7 @@ export type CaptureItem = {
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
+  folder?: string | null;
   photos?: (string | { id: string; fileName?: string; file_name?: string })[];
   subtasks?: Subtask[];
 };

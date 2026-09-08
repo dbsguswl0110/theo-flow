@@ -7,36 +7,53 @@ export default function Collection({
   onClose,
   onSelect,
   onSave,
+  folders,
+  onAddFolder,
 }: {
   kind: string;
   items: CaptureItem[];
   onClose: () => void;
   onSelect: (i: CaptureItem) => void;
   onSave: (i: CaptureItem) => Promise<boolean>;
+  folders: string[];
+  onAddFolder: (name: string) => Promise<boolean>;
 }) {
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false),
+    [folder, setFolder] = useState("*"),
+    [adding, setAdding] = useState(false),
+    [name, setName] = useState("");
   async function save(item: CaptureItem) {
     if (busy) return;
     setBusy(true);
-    try { await onSave(item); } finally { setBusy(false); }
+    try {
+      await onSave(item);
+    } finally {
+      setBusy(false);
+    }
   }
-  const title = (
-    {
-      note: "Note",
-      task: "Task",
-      project: "Project Todo",
-      todos: "Todo",
-      trash: "Trash",
-    } as Record<string, string>
-  )[kind];
   const visible = items.filter((i) =>
     kind === "trash"
       ? !!i.deletedAt
       : !i.deletedAt &&
-        (kind === "project" || kind === "todos"
-          ? i.type === "todo"
-          : i.type === kind),
+        i.type === kind &&
+        (kind !== "note" || folder === "*" || (i.folder || "") === folder),
   );
+  const childTasks =
+    kind === "task"
+      ? items
+          .filter((i) => i.type === "todo" && !i.deletedAt)
+          .flatMap((parent) =>
+            (parent.subtasks || []).map((task) => ({ parent, task })),
+          )
+      : [];
+  const title =
+    kind === "todo"
+      ? "Todo"
+      : kind === "task"
+        ? "Task"
+        : kind === "note"
+          ? "Note"
+          : "Trash";
   return (
     <motion.section
       className="panel collection-panel"
@@ -49,21 +66,82 @@ export default function Collection({
           ←
         </button>
         <h1>{title}</h1>
-        <span>{visible.length}</span>
+        <span>{visible.length + childTasks.length}</span>
       </header>
       <p className="muted">
-        {kind === "todos"
-          ? "프로젝트에 담긴 하위 할 일"
+        {kind === "todo"
+          ? "Todo를 열어 안에 Task를 나눠 담으세요."
           : kind === "trash"
-            ? "옮긴 항목은 여기에서 복원할 수 있어요."
+            ? "옮긴 항목을 복원할 수 있어요."
             : "한 장의 생각이 모이는 곳"}
       </p>
-      {visible.length === 0 && (
-        <div className="empty-state">
-          아직 비어 있어요.
-          <br />
-          <span>중앙 메모장에서 적고 스와이프해보세요.</span>
-        </div>
+      {kind === "note" && (
+        <section className="folder-panel" aria-label="Folder">
+          <div className="folder-heading">
+            <h2>Folder</h2>
+            <button
+              className="secondary-btn"
+              onClick={() => setAdding(!adding)}
+            >
+              + 폴더
+            </button>
+          </div>
+          {adding && (
+            <form
+              className="folder-create"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!name.trim() || busy) return;
+                setBusy(true);
+                try {
+                  if (await onAddFolder(name.trim())) {
+                    setName("");
+                    setAdding(false);
+                  }
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <input
+                aria-label="폴더 이름"
+                maxLength={60}
+                placeholder="폴더 이름"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+              <button disabled={busy || !name.trim()} className="primary-btn">
+                만들기
+              </button>
+            </form>
+          )}
+          <div className="folder-tabs">
+            <button
+              className={folder === "*" ? "active" : ""}
+              onClick={() => setFolder("*")}
+            >
+              전체
+            </button>
+            <button
+              className={folder === "" ? "active" : ""}
+              onClick={() => setFolder("")}
+            >
+              미분류
+            </button>
+            {folders.map((f) => (
+              <button
+                key={f}
+                className={folder === f ? "active" : ""}
+                onClick={() => setFolder(f)}
+              >
+                ▱ {f}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+      {!visible.length && !childTasks.length && (
+        <div className="empty-state">아직 비어 있어요.</div>
       )}
       {visible.map((i) => (
         <article className="collection-card" key={i.id}>
@@ -71,45 +149,59 @@ export default function Collection({
             <strong>{i.title}</strong>
             <span>{i.content || "내용 없음"}</span>
             <small>
-              {i.startDate} {i.dueDate ? "→ " + i.dueDate : "· 마감 없음"}
+              {i.startDate}
+              {i.dueDate ? " → " + i.dueDate : " · 마감 없음"}
+              {i.type === "todo"
+                ? " · " +
+                  (i.subtasks?.filter((t) => t.completed).length || 0) +
+                  "/" +
+                  (i.subtasks?.length || 0) +
+                  " Task"
+                : ""}
             </small>
           </button>
-          {kind === "todos" && (
-            <div className="collection-subtasks">
-              {!i.subtasks?.length && (
-                <p>프로젝트를 열어 할 일을 추가해주세요.</p>
-              )}
-              {i.subtasks?.map((s) => (
-                <label key={s.id}>
-                  <input
-                    type="checkbox"
-                    checked={s.completed}
-                    disabled={busy}
-                    onChange={(e) =>
-                      void save({
-                        ...i,
-                        subtasks: i.subtasks?.map((t) =>
-                          t.id === s.id
-                            ? { ...t, completed: e.target.checked }
-                            : t,
-                        ),
-                      })
-                    }
-                  />
-                  {s.title}
-                </label>
-              ))}
-            </div>
+          {kind === "note" && (
+            <label className="folder-select">
+              Folder
+              <select
+                aria-label={i.title + " 폴더"}
+                disabled={busy}
+                value={i.folder || ""}
+                onChange={(e) =>
+                  void save({ ...i, folder: e.target.value || null })
+                }
+              >
+                <option value="">미분류</option>
+                {folders.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
           {kind === "trash" && (
             <button
-              className="secondary-btn"
               disabled={busy}
+              className="secondary-btn"
               onClick={() => void save({ ...i, deletedAt: null })}
             >
               복원
             </button>
           )}
+        </article>
+      ))}
+      {childTasks.map(({ parent, task }) => (
+        <article className="collection-card" key={task.id}>
+          <button className="collection-open" onClick={() => onSelect(parent)}>
+            <strong>{task.title}</strong>
+            <span>{task.content || "내용 없음"}</span>
+            <small>
+              Todo · {parent.title} · {task.startDate || parent.startDate}
+              {task.dueDate ? " → " + task.dueDate : ""}
+              {task.completed ? " · 완료" : ""}
+            </small>
+          </button>
         </article>
       ))}
     </motion.section>

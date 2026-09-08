@@ -8,8 +8,10 @@ export default function ItemDetail({
   item,
   onClose,
   onSave,
+  folders,
 }: {
   item: CaptureItem;
+  folders: string[];
   onClose: () => void;
   onSave: (item: CaptureItem) => Promise<boolean>;
 }) {
@@ -21,6 +23,12 @@ export default function ItemDetail({
     if (
       !next.title.trim() ||
       !next.startDate ||
+      next.subtasks?.some(
+        (t) =>
+          t.title.trim() &&
+          t.dueDate &&
+          t.dueDate < (t.startDate || next.startDate),
+      ) ||
       (next.dueDate && next.dueDate < next.startDate)
     ) {
       setError("제목과 날짜를 확인해주세요. 마감일은 시작일 이후여야 해요.");
@@ -51,7 +59,7 @@ export default function ItemDetail({
         </button>
         <h1>
           {draft.type === "todo"
-            ? "Project Todo"
+            ? "Todo"
             : draft.type === "note"
               ? "Note"
               : "Task"}
@@ -74,6 +82,26 @@ export default function ItemDetail({
           onChange={(fields) => setDraft({ ...draft, ...fields })}
         />
       </div>
+      {draft.type === "note" && (
+        <label className="folder-select">
+          Folder
+          <select
+            aria-label="노트 폴더"
+            value={draft.folder || ""}
+            disabled={busy || !editing}
+            onChange={(e) =>
+              setDraft({ ...draft, folder: e.target.value || null })
+            }
+          >
+            <option value="">미분류</option>
+            {folders.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {draft.type !== "note" && (
         <label className="completion-row">
           <input
@@ -89,46 +117,60 @@ export default function ItemDetail({
       )}
       {draft.type === "todo" && (
         <section className="subtask-editor">
-          <h2>Project Todo</h2>
+          <h2>Todo</h2>
           {!draft.subtasks?.length && (
-            <p className="muted">
-              Edit에서 프로젝트의 하위 할 일을 추가해보세요.
-            </p>
+            <p className="muted">Edit에서 Todo 안에 Task를 추가해보세요.</p>
           )}
           {draft.subtasks?.map((s) => (
-            <div key={s.id} className="subtask-row">
-              <input
-                aria-label={s.title + " 완료"}
-                type="checkbox"
-                checked={!!s.completed}
-                disabled={busy}
-                onChange={(e) => {
-                  const next = {
-                    ...draft,
-                    subtasks: draft.subtasks?.map((t) =>
-                      t.id === s.id ? { ...t, completed: e.target.checked } : t,
-                    ),
-                  };
-                  editing ? setDraft(next) : void persist(next);
-                }}
-              />
-              <input
-                aria-label="하위 할 일"
-                disabled={!editing || busy}
-                value={s.title}
-                placeholder="할 일"
-                onChange={(e) =>
-                  setDraft({
-                    ...draft,
-                    subtasks: draft.subtasks?.map((t) =>
-                      t.id === s.id ? { ...t, title: e.target.value } : t,
-                    ),
-                  })
-                }
-              />
+            <details
+              key={s.id}
+              className="child-task"
+              open={editing || undefined}
+            >
+              <summary>
+                <input
+                  type="checkbox"
+                  aria-label={s.title + " 완료"}
+                  checked={!!s.completed}
+                  disabled={busy || !!draft.deletedAt}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    const next = {
+                      ...draft,
+                      subtasks: draft.subtasks?.map((t) =>
+                        t.id === s.id
+                          ? { ...t, completed: e.target.checked }
+                          : t,
+                      ),
+                    };
+                    editing ? setDraft(next) : void persist(next);
+                  }}
+                />
+                <span>{s.title || "새 Task"}</span>
+              </summary>
+              <div className="child-task-fields">
+                <MemoFields
+                  draft={{
+                    title: s.title,
+                    content: s.content || "",
+                    startDate: s.startDate || draft.startDate,
+                    dueDate: s.dueDate || null,
+                  }}
+                  disabled={!editing || busy}
+                  onChange={(fields) =>
+                    setDraft({
+                      ...draft,
+                      subtasks: draft.subtasks?.map((t) =>
+                        t.id === s.id ? { ...t, ...fields } : t,
+                      ),
+                    })
+                  }
+                />
+              </div>
               {editing && (
                 <button
-                  aria-label="하위 할 일 삭제"
+                  className="secondary-btn"
+                  aria-label="Task 삭제"
                   onClick={() =>
                     setDraft({
                       ...draft,
@@ -136,10 +178,10 @@ export default function ItemDetail({
                     })
                   }
                 >
-                  ×
+                  Task 삭제
                 </button>
               )}
-            </div>
+            </details>
           ))}
           {editing && (
             <button
@@ -149,12 +191,19 @@ export default function ItemDetail({
                   ...draft,
                   subtasks: [
                     ...(draft.subtasks || []),
-                    { id: crypto.randomUUID(), title: "", completed: false },
+                    {
+                      id: crypto.randomUUID(),
+                      title: "",
+                      completed: false,
+                      content: "",
+                      startDate: draft.startDate,
+                      dueDate: null,
+                    },
                   ],
                 })
               }
             >
-              + 할 일 추가
+              + Task 추가
             </button>
           )}
         </section>

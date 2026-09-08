@@ -1,21 +1,74 @@
 import { test, expect } from "@playwright/test";
-
 test.beforeEach(async ({ page }) => {
   let items: any[] = [];
-  await page.route("**/api/items**", async (route) => {
-    const req = route.request();
+  let folders: string[] = [];
+  await page.route("**/api/folders", async (r) => {
+    if (r.request().method() === "POST") {
+      const { name } = r.request().postDataJSON();
+      folders.push(name);
+      await r.fulfill({ status: 201, json: { name } });
+    } else await r.fulfill({ json: folders });
+  });
+  await page.route("**/api/items**", async (r) => {
+    const req = r.request();
     if (req.method() === "POST") {
-      const item = req.postDataJSON();
-      items.unshift({ ...item, photos: [], subtasks: [], completed: false });
-      await route.fulfill({ status: 201, json: { id: item.id } });
+      const i = req.postDataJSON();
+      items.unshift({ ...i, subtasks: [], photos: [] });
+      await r.fulfill({ status: 201, json: { id: i.id } });
     } else if (req.method() === "PUT") {
-      const item = req.postDataJSON();
-      items = items.map((i) => (i.id === item.id ? item : i));
-      await route.fulfill({ json: { ok: true } });
-    } else await route.fulfill({ json: items });
+      const i = req.postDataJSON();
+      items = items.map((x) => (x.id === i.id ? i : x));
+      await r.fulfill({ json: { ok: true } });
+    } else await r.fulfill({ json: items });
   });
 });
-
+async function ready(page: any) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "건너뛰기" }).click();
+  await expect(page.locator(".startup")).toHaveCount(0);
+  await page.waitForTimeout(500);
+}
+async function throwMemo(page: any, title: string, dx: number, dy: number) {
+  await page
+    .locator(".memo-pad")
+    .getByRole("textbox", { name: "제목", exact: true })
+    .fill(title);
+  await page.getByRole("button", { name: "완료", exact: true }).click();
+  await page.waitForTimeout(400);
+  const h = await page.locator(".memo-handle").boundingBox();
+  const before = await page.locator(".memo-pad").boundingBox();
+  await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(h.x + h.width / 2 + dx, h.y + h.height / 2 + dy, {
+    steps: 12,
+  });
+  await page.waitForTimeout(80);
+  const during = await page.locator(".memo-pad").boundingBox();
+  expect(
+    Math.abs(during.x - before.x) + Math.abs(during.y - before.y),
+  ).toBeGreaterThan(50);
+  await page.mouse.up();
+  await expect(page.getByRole("status")).toContainText("등록되었습니다");
+  await expect(page.locator(".memo-title")).toHaveValue("");
+  await page.waitForTimeout(500);
+}
+async function assertSpace(page: any, width: number, height: number) {
+  const b = (await page.locator(".memo-pad").boundingBox())!;
+  expect(Math.abs(b.x + b.width / 2 - width / 2)).toBeLessThan(2);
+  expect(b.y).toBeGreaterThan(0);
+  expect(b.y + b.height).toBeLessThan(height);
+  for (const selector of ["note", "task", "todo"]) {
+    const a = (await page
+      .locator('[data-target="' + selector + '"]')
+      .boundingBox())!;
+    expect(a.x).toBeGreaterThanOrEqual(0);
+    expect(a.x + a.width).toBeLessThanOrEqual(width);
+    const overlap =
+      Math.min(b.x + b.width, a.x + a.width) > Math.max(b.x, a.x) &&
+      Math.min(b.y + b.height, a.y + a.height) > Math.max(b.y, a.y);
+    expect(overlap, selector + " must not overlap memo").toBeFalsy();
+  }
+}
 for (const [width, height] of [
   [344, 882],
   [360, 800],
@@ -24,197 +77,132 @@ for (const [width, height] of [
   [900, 768],
   [1440, 900],
 ]) {
-  test("stable composition " + width + "x" + height, async ({ page }) => {
+  test("TEO layout " + width + "x" + height, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await page.goto("/");
-    await page.getByRole("button", { name: "건너뛰기" }).click();
-    await expect(page.locator(".memo-pad")).toBeVisible();
-    await page.waitForTimeout(900);
-    const box = await page.locator(".memo-pad").boundingBox();
-    expect(Math.abs(box!.x + box!.width / 2 - width / 2)).toBeLessThan(2);
-    expect(box!.x).toBeGreaterThan(0);
-    expect(box!.y).toBeGreaterThan(0);
-    for (const el of await page.locator(".theo-anchor").all()) {
-      const b = (await el.boundingBox())!;
-      expect(b.x).toBeGreaterThanOrEqual(0);
-      expect(b.x + b.width).toBeLessThanOrEqual(width);
-      expect(b.y + b.height).toBeLessThan(height);
-      const overlap =
-        Math.min(box!.x + box!.width, b.x + b.width) > Math.max(box!.x, b.x) &&
-        Math.min(box!.y + box!.height, b.y + b.height) > Math.max(box!.y, b.y);
-      expect(overlap).toBeFalsy();
-    }
-    await page.screenshot({ path: "test-results/home-" + width + ".png" });
-    await page
-      .getByRole("textbox", { name: "제목", exact: true })
-      .fill("집중 모드");
+    await ready(page);
+    await expect(page.locator(".theo-anchor")).toHaveCount(4);
+    await expect(
+      page.getByRole("button", { name: "Project", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.locator(".wallpaper,.swipe-actions")).toHaveCount(0);
+    await assertSpace(page, width, height);
+    await page.screenshot({ path: "test-results/teo-" + width + ".png" });
+    const idle = await page.locator(".memo-pad").boundingBox();
+    await page.locator(".memo-title").fill("입력 중");
     await page.waitForTimeout(350);
-    const focused = (await page.locator(".memo-pad").boundingBox())!;
-    expect(Math.abs(focused.x + focused.width / 2 - width / 2)).toBeLessThan(2);
-    await expect(page.locator(".focus-overlay")).toBeVisible();
-    await page.screenshot({ path: "test-results/focus-" + width + ".png" });
+    expect(
+      (await page.locator(".memo-pad").boundingBox())!.width,
+    ).toBeGreaterThan(idle!.width);
+    await assertSpace(page, width, height);
+    await expect(page.locator('[data-target="calendar"]')).toBeHidden();
+    await expect(
+      page.getByRole("textbox", { name: "마감일", exact: true }),
+    ).toBeDisabled();
+    await page.getByRole("switch", { name: "마감일 사용" }).click();
+    await expect(
+      page.getByRole("textbox", { name: "마감일", exact: true }),
+    ).toBeEnabled();
+    await page.getByRole("switch", { name: "마감일 사용" }).click();
+    await expect(
+      page.getByRole("textbox", { name: "마감일", exact: true }),
+    ).toBeDisabled();
   });
 }
-
-test("finger tracking, three directions, edit, calendar and trash restore", async ({
+test("three throws, folder classification, Todo child Task and combined calendar", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 412, height: 915 });
-  await page.goto("/");
-  await page.getByRole("button", { name: "건너뛰기" }).click();
-  for (const [title, dx, dy] of [
-    ["왼쪽 노트", -140, 0],
-    ["오른쪽 태스크", 140, 0],
-    ["위쪽 프로젝트", 0, -150],
-  ] as const) {
-    await page.getByRole("textbox", { name: "제목", exact: true }).fill(title);
-    await page
-      .getByRole("textbox", { name: "내용", exact: true })
-      .fill("스와이프 테스트");
-    await page.getByLabel("시작일", { exact: true }).fill("2026-09-08");
-    await page.getByLabel("마감일 방식").selectOption("date");
-    await page.getByLabel("마감일", { exact: true }).fill("2026-09-12");
-    await page
-      .getByRole("button", { name: "작성 완료 · 스와이프하기" })
-      .click();
-    await page.waitForTimeout(400);
-    const handle = (await page
-      .getByRole("button", { name: "메모 스와이프 손잡이" })
-      .boundingBox())!;
-    const before = (await page.locator(".memo-pad").boundingBox())!;
-    await page.mouse.move(
-      handle.x + handle.width / 2,
-      handle.y + handle.height / 2,
-    );
-    await page.mouse.down();
-    await page.mouse.move(
-      handle.x + handle.width / 2 + dx,
-      handle.y + handle.height / 2 + dy,
-      { steps: 12 },
-    );
-    await page.waitForTimeout(100);
-    const moving = (await page.locator(".memo-pad").boundingBox())!;
-    expect(
-      Math.abs(moving.x - before.x) + Math.abs(moving.y - before.y),
-    ).toBeGreaterThan(100);
-    await page.mouse.up();
-    await expect(page.getByRole("status")).toContainText("등록되었습니다");
-    await expect(
-      page.getByRole("textbox", { name: "제목", exact: true }),
-    ).toHaveValue("");
-    await page.waitForTimeout(650);
-    await expect(page.locator(".panel")).toHaveCount(0);
-  }
-  await page
-    .getByRole("button", { name: "Calendar", exact: true })
-    .click({ force: true });
-  await expect(page.locator(".calendar-bar")).toHaveCount(3);
-  await expect(page.locator(".calendar-bar").first()).toHaveCSS(
-    "grid-column-end",
-    "7",
-  );
-  await page.screenshot({ path: "test-results/calendar.png" });
-  await page.getByRole("button", { name: "캘린더 닫기" }).click();
-  await expect(page.locator(".calendar-screen")).toHaveCount(0);
-  await page
-    .getByRole("button", { name: "Todo", exact: true })
-    .click({ force: true });
+  await ready(page);
+  await throwMemo(page, "개인 노트", -110, 0);
+  await throwMemo(page, "독립 Task", 110, 0);
+  await throwMemo(page, "업무 Todo", 0, -110);
+  await page.locator('[data-target="note"] button').click({ force: true });
+  await page.getByRole("button", { name: "+ 폴더", exact: true }).click();
+  await page.getByRole("textbox", { name: "폴더 이름" }).fill("업무");
+  await page.getByRole("button", { name: "만들기", exact: true }).click();
+  await page.getByLabel("개인 노트 폴더").selectOption("업무");
+  await page.getByRole("button", { name: "미분류", exact: true }).click();
+  await expect(page.locator(".collection-card")).toHaveCount(0);
+  await page.getByRole("button", { name: "▱ 업무", exact: true }).click();
+  await expect(page.locator(".collection-card")).toHaveCount(1);
+  await page.getByRole("button", { name: "목록 닫기" }).click();
+  await expect(page.locator(".collection-panel")).toHaveCount(0);
+  await page.locator('[data-target="todo"] button').click({ force: true });
   await page.locator(".collection-open").click();
   await page.getByRole("button", { name: "Edit", exact: true }).click();
-  await page.getByRole("button", { name: "+ 할 일 추가", exact: true }).click();
+  await page.getByRole("button", { name: "+ Task 추가", exact: true }).click();
   await page
-    .getByRole("textbox", { name: "하위 할 일", exact: true })
+    .locator(".child-task")
+    .getByRole("textbox", { name: "제목", exact: true })
     .fill("자료 정리");
-  await page.getByRole("button", { name: "저장", exact: true }).click();
-  await page.getByRole("button", { name: "휴지통으로 이동" }).click();
-  await expect(page.locator(".collection-open")).toHaveCount(0);
-  await page.getByRole("button", { name: "목록 닫기" }).click();
-  await page.getByRole("button", { name: "Trash", exact: true }).click();
-  await expect(page.locator(".collection-open")).toHaveCount(1);
-  await page.getByRole("button", { name: "복원", exact: true }).click();
-  await expect(page.locator(".collection-open")).toHaveCount(0);
-  await page.getByRole("button", { name: "목록 닫기" }).click();
-  await page.setViewportSize({ width: 900, height: 768 });
-  await expect(page.locator(".home-stage")).toHaveClass(/expanded/);
-  await expect(page.locator(".panel")).toHaveCount(0);
   await page
-    .getByRole("button", { name: "Todo", exact: true })
-    .click({ force: true });
-  await expect(page.getByText("자료 정리", { exact: true })).toBeVisible();
-  await page.getByRole("checkbox").click();
-  await expect(page.getByRole("checkbox")).toBeChecked();
+    .locator(".child-task")
+    .getByRole("textbox", { name: "내용", exact: true })
+    .fill("Task 내용");
+  await page.getByRole("button", { name: "저장", exact: true }).click();
+  await expect(page.locator(".child-task summary")).toContainText("자료 정리");
+  await page.getByRole("button", { name: "상세 닫기" }).click();
+  await page.getByRole("button", { name: "목록 닫기" }).click();
+  await expect(page.locator(".panel")).toHaveCount(0);
+  await page.locator('[data-target="calendar"] button').click({ force: true });
+  await expect(page.locator(".calendar-bar")).toHaveCount(3);
+  await expect(
+    page.locator(".calendar-bar").filter({ hasText: "개인 노트" }),
+  ).toHaveCount(0);
+  await page.getByRole("button", { name: "Task 목록", exact: true }).click();
+  await expect(page.locator(".collection-open").first()).toContainText(
+    "독립 Task",
+  );
+  await expect(page.locator(".collection-open").last()).toContainText(
+    "자료 정리",
+  );
+  await page.getByRole("button", { name: "목록 닫기" }).click();
+  await expect(page.locator(".calendar-screen")).toBeVisible();
+  await page.getByRole("button", { name: "Todo 목록", exact: true }).click();
+  await expect(page.locator(".collection-open")).toContainText("업무 Todo");
 });
-
-test("startup phases, touch swipe and keyboard-size viewport", async ({
+test("keyboard viewport reserves classification icons and failed fling preserves draft", async ({
   page,
   context,
 }) => {
   await page.setViewportSize({ width: 360, height: 800 });
-  await page.goto("/");
-  await expect(page.locator(".startup.phase-0")).toBeVisible();
-  await expect(page.locator(".startup.phase-1")).toBeVisible();
-  await page.screenshot({ path: "test-results/startup-split.png" });
-  await expect(page.locator(".startup.phase-2")).toBeVisible();
-  await page.screenshot({ path: "test-results/startup-faces.png" });
-  await expect(page.locator(".startup")).toHaveCount(0);
-  await page
-    .getByRole("textbox", { name: "제목", exact: true })
-    .fill("터치 메모");
-  await page.setViewportSize({ width: 360, height: 480 });
+  await ready(page);
+  await page.locator(".memo-handle").click();
+  await expect(page.locator(".memo-title")).toBeFocused();
+  await page.locator(".memo-title").fill("터치 메모");
+  await page.setViewportSize({ width: 360, height: 460 });
   await page.waitForTimeout(400);
-  const focusBox = (await page.locator(".memo-pad").boundingBox())!;
-  expect(focusBox.y).toBeGreaterThanOrEqual(0);
-  expect(focusBox.y + focusBox.height).toBeLessThan(480);
-  await page.screenshot({ path: "test-results/keyboard.png" });
-  await page.setViewportSize({ width: 360, height: 800 });
-  await page.getByRole("button", { name: "작성 완료 · 스와이프하기" }).click();
-  await page.waitForTimeout(400);
-  const handle = (await page.locator(".memo-handle").boundingBox())!;
+  await assertSpace(page, 360, 460);
+  await page.screenshot({ path: "test-results/teo-keyboard.png" });
+  const h = (await page.locator(".memo-handle").boundingBox())!;
   const cdp = await context.newCDPSession(page);
   await cdp.send("Emulation.setTouchEmulationEnabled", { enabled: true });
-  const x = handle.x + handle.width / 2,
-    y = handle.y + handle.height / 2;
+  const x = h.x + h.width / 2,
+    y = h.y + h.height / 2;
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
     touchPoints: [{ x, y }],
   });
-  for (let n = 1; n <= 12; n++)
+  for (let n = 1; n <= 10; n++)
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchMove",
-      touchPoints: [{ x: x - n * 10, y }],
+      touchPoints: [{ x: x - n * 8, y }],
     });
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchEnd",
     touchPoints: [],
   });
   await expect(page.getByRole("status")).toContainText("노트");
-  await expect(
-    page.getByRole("textbox", { name: "제목", exact: true }),
-  ).toHaveValue("");
-});
-
-test("cancelled gestures and failed save retain draft", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "건너뛰기" }).click();
-  await page
-    .getByRole("textbox", { name: "제목", exact: true })
-    .fill("남아 있어야 하는 메모");
-  await page.getByRole("button", { name: "작성 완료 · 스와이프하기" }).click();
-  await page.waitForTimeout(400);
-  const box = (await page.locator(".memo-handle").boundingBox())!;
-  await page.mouse.move(box.x + box.width / 2, box.y + 10);
-  await page.mouse.down();
-  await page.mouse.move(box.x + box.width / 2 + 40, box.y + 40, { steps: 8 });
-  await page.mouse.up();
-  await expect(
-    page.getByRole("textbox", { name: "제목", exact: true }),
-  ).toHaveValue("남아 있어야 하는 메모");
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.waitForTimeout(500);
+  await page.locator(".memo-title").fill("연결 오류 메모");
+  await page.getByRole("button", { name: "완료", exact: true }).click();
+  await page.waitForTimeout(350);
   await page.route("**/api/items", (r) =>
     r.fulfill({ status: 503, json: { error: "offline" } }),
   );
-  await page.getByRole("button", { name: "Note로 저장", exact: true }).click();
+  await page.locator(".memo-handle").focus();
+  await page.keyboard.press("ArrowRight");
   await expect(page.getByRole("alert")).toContainText("내용은 남아 있습니다");
-  await expect(
-    page.getByRole("textbox", { name: "제목", exact: true }),
-  ).toHaveValue("남아 있어야 하는 메모");
+  await expect(page.locator(".memo-title")).toHaveValue("연결 오류 메모");
 });

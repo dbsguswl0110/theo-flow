@@ -1,15 +1,15 @@
-# Theo Flow
+# TEO
 
-Theo Flow is a spatial productivity app built around **Write → Swipe → Organise**.
+TEO is a spatial productivity app built around **Write → Swipe → Organise**.
 
 - Swipe left: Note
 - Swipe right: Task
-- Swipe up: Project Todo
+- Swipe up: Todo (project container)
 - Tap Calendar: morph into the shared timeline view
 
-The Fold-first UI keeps the Memo Pad at the centre of a four-way Theo layout. Opening the app plays a white-screen jelly birth → four drops → Theo faces → memo zoom-in sequence. The supplied navigation and pixel character sheets are included intact under `public/assets`; SVG viewports display the relevant artwork without the original sheet labels. Today is labelled Todo.
+The Fold-first UI keeps a compact Memo Pad in a four-way TEO layout on a plain cream-white background (no wallpaper). Opening the app plays a white-screen jelly birth → four drops → Theo faces → memo zoom-in sequence. The supplied navigation and pixel character sheets are included intact under `public/assets`; SVG viewports display the relevant artwork without the original sheet labels. Today is labelled Todo.
 
-Expanded screens use two thumb-area docks: Note / Todo on the left, Task / Project on the right, Calendar at bottom centre. Todo shows project subtasks; Project opens the project collection. The toolbar contains only Trash and Setting. Automatic layout uses available width and aspect ratio, not pointer type; Setting also provides a manual override and reduced-motion option.
+Both folded and expanded screens use Todo above, Note left, Task right, Calendar below. The separate Project icon has been removed: Todo itself is the project container, with child Tasks that have title, content, start/due dates and completion. The toolbar contains only Trash and Setting. Automatic layout uses available width and aspect ratio, not pointer type; Setting also provides a manual override and reduced-motion option.
 
 ## Local development
 
@@ -79,11 +79,15 @@ When updating the web experience, run `npm run cf:deploy`. The Android app point
 
 ## Interaction details
 
-The Memo Pad uses a 90px swipe threshold and spring-back for incomplete gestures. Completed swipes follow a curved flight, scale down, fade out, show a registration toast, and regenerate a blank Memo Pad. Focus mode keeps the Memo Pad crisp while applying `rgba(0,0,0,.10)` and a 7px backdrop blur behind it. Deadline bars interpolate continuously from green through yellow and orange to red at the defined 0/30/50/70% thresholds.
+The Memo Pad uses a 65px directional swipe threshold and spring-back for incomplete gestures. Completed swipes fly in the chosen direction without needing to hit an icon, then scale down, fade out, show a registration toast, and regenerate a blank Memo Pad. Focus mode keeps the Memo Pad crisp while applying a light `rgba(0,0,0,.03)` tint and a 7px backdrop blur behind it. Deadline bars interpolate continuously from green through yellow and orange to red at the defined 0/30/50/70% thresholds.
 
-Drag the memo handle or paper margin; text fields retain text selection and scrolling. Arrow keys on the handle and the small direction buttons are equivalent accessible save actions. Saving never navigates into a collection. Calendar opens on tap and draws continuous start-to-due bars across each week. Detail and creation reuse the same MemoFields form, including explicit None/date due-date selection.
+Drag the memo handle or paper margin; text fields retain text selection and scrolling. Arrow keys on the handle are accessible save actions. Visible arrow/category buttons have been removed from the memo. Tapping its paper or handle focuses the title. Saving never navigates into a collection. Calendar opens on tap and shows Todo and Task (including child Tasks) together, never Notes. Its bottom Todo/Task switches open the matching collections, and closing the collection returns to Calendar. It draws continuous start-to-due bars across each week. Detail and creation reuse the same MemoFields form, including a NONE/DUE toggle and a date field that is disabled when NONE is selected.
 
 Positioning wrappers own the centering transform; only their children own animation transforms. This separation fixes the former off-screen memo and icon drift.
+
+The layout tracks the browser visual viewport when the keyboard appears. The expanded memo reserves left/right/top icon space; Calendar is hidden while writing.
+
+`0003_folders_tasks.sql` adds a `folders` table, a nullable Note folder, and content/start/due fields for child Tasks without deleting existing data. `GET/POST /api/folders` lists/creates folders; Note collection and detail provide folder assignment. Folder names are currently flat, not nested.
 
 ## Verification
 
@@ -98,4 +102,4 @@ npx playwright test tests/flow.spec.ts
 node tests/api-smoke.mjs
 ```
 
-`CHROME_PATH` optionally selects an installed Chrome executable. `TEST_URL` changes the UI test server (default http://127.0.0.1:5174). Tests cover 344/360/412 px folded, 768/900 px expanded, 1440 px desktop, touch drag, all swipe directions, draft retention, calendar, edit and trash restore. API smoke tests are deliberately hardcoded to localhost and remove only their own test records. Browser-emulated viewports and keyboard resizing do not replace final testing on a physical Galaxy Fold and its Android WebView.
+`CHROME_PATH` optionally selects an installed Chrome executable. `TEST_URL` changes the UI test server (default http://127.0.0.1:5174). Tests cover 344/360/412 px folded, 768/900 px expanded, 1440 px desktop, touch drag, all swipe directions, draft retention, calendar list navigation, folder classification and Todo child Tasks. API smoke tests are deliberately hardcoded to localhost and remove only their own test records. Browser-emulated viewports and keyboard resizing do not replace final testing on a physical Galaxy Fold and its Android WebView.

@@ -28,7 +28,7 @@ export default function MemoPad({
   const [draft, setDraft] = useState<DraftItem>(emptyDraft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [direction, setDirection] = useState("");
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const locked = useRef(false);
   const anchor = useRef<HTMLDivElement>(null);
   const controls = useAnimationControls();
@@ -55,7 +55,6 @@ export default function MemoPad({
   }
   async function send(type: ItemType) {
     if (locked.current) return;
-    setDirection("");
     if (
       !draft.title.trim() ||
       !draft.startDate ||
@@ -72,16 +71,11 @@ export default function MemoPad({
     locked.current = true;
     setBusy(true);
     setError("");
-    const stage = anchor.current?.closest(".home-stage");
-    const target = stage?.querySelector(
-      `[data-target="${type === "todo" && stage.classList.contains("expanded") ? "project" : type}"]`,
-    );
-    const base = anchor.current?.getBoundingClientRect(),
-      end = target?.getBoundingClientRect();
+    // A directional throw, not a drop target: the icon does not need to be hit.
+    const distance = Math.max(260, (anchor.current?.clientWidth || 220) * 1.4);
     const tx =
-      base && end ? end.x + end.width / 2 - (base.x + base.width / 2) : 0;
-    const ty =
-      base && end ? end.y + end.height / 2 - (base.y + base.height / 2) : -160;
+      type === "todo" ? x.get() * 0.25 : type === "note" ? -distance : distance;
+    const ty = type === "todo" ? -distance : y.get() - 35;
     await controls.start({
       x: [x.get(), (x.get() + tx) / 2, tx],
       y: [y.get(), (y.get() + ty) / 2 - 45, ty],
@@ -116,7 +110,7 @@ export default function MemoPad({
   }
   function directionFor(info: PanInfo): ItemType | null {
     const { x: dx, y: dy } = info.offset;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 90) return null;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < 65) return null;
     return Math.abs(dy) > Math.abs(dx)
       ? dy < 0
         ? "todo"
@@ -137,16 +131,29 @@ export default function MemoPad({
         dragControls={dragControls}
         dragMomentum={false}
         onPointerDown={(e) => {
+          pointerStart.current = { x: e.clientX, y: e.clientY };
           if (
             !busy &&
             !(e.target as HTMLElement).closest("input,textarea,select,button")
           )
             dragControls.start(e);
         }}
-        onDrag={(_, info) => setDirection(directionFor(info) ?? "")}
+        onPointerUp={(e) => {
+          const start = pointerStart.current;
+          pointerStart.current = null;
+          if (
+            start &&
+            Math.hypot(e.clientX - start.x, e.clientY - start.y) < 8 &&
+            !busy &&
+            !(e.target as HTMLElement).closest("input,textarea,select,button")
+          ) {
+            anchor.current
+              ?.querySelector<HTMLInputElement>(".memo-title")
+              ?.focus();
+          }
+        }}
         onDragEnd={(_, info) => {
           const type = directionFor(info);
-          setDirection("");
           if (type) void send(type);
           else void returnHome();
         }}
@@ -164,12 +171,8 @@ export default function MemoPad({
             }}
           >
             <i />
-            <span>
-              {busy
-                ? "저장 중…"
-                : direction
-                  ? `${direction === "todo" ? "Project Todo" : direction}에 놓기`
-                  : "WRITE → SWIPE"}
+            <span className="sr-only">
+              {busy ? "저장 중" : "메모를 작성하고 원하는 방향으로 보내세요"}
             </span>
             <i />
           </div>
@@ -193,32 +196,9 @@ export default function MemoPad({
                 onBlurFocus();
               }}
             >
-              작성 완료 · 스와이프하기
+              완료
             </button>
           )}
-          <div className="swipe-actions">
-            <button
-              disabled={busy}
-              aria-label="Note로 저장"
-              onClick={() => void send("note")}
-            >
-              ← Note
-            </button>
-            <button
-              disabled={busy}
-              aria-label="프로젝트 Todo로 저장"
-              onClick={() => void send("todo")}
-            >
-              ↑ Todo
-            </button>
-            <button
-              disabled={busy}
-              aria-label="Task로 저장"
-              onClick={() => void send("task")}
-            >
-              Task →
-            </button>
-          </div>
         </div>
       </motion.section>
     </div>

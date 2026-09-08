@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
-import type { CaptureItem, ItemType } from "../types";
+import type { CaptureItem } from "../types";
 import { deadlineColor, deadlineProgress } from "../lib/deadlineColor";
 import { dayKey } from "../lib/dates";
 export default function CalendarView({
@@ -9,15 +9,17 @@ export default function CalendarView({
   onSelect,
   origin,
   quiet,
+  onOpenList,
 }: {
   items: CaptureItem[];
   onClose: () => void;
   onSelect: (i: CaptureItem) => void;
   origin: string;
   quiet: boolean;
+  onOpenList: (kind: string) => void;
 }) {
   const [month, setMonth] = useState(() => new Date());
-  const [filter, setFilter] = useState<ItemType | "all">("all");
+
   const days = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);
     first.setDate(first.getDate() - ((first.getDay() + 6) % 7));
@@ -27,7 +29,11 @@ export default function CalendarView({
       return d;
     });
   }, [month]);
-  const visible = items.filter((i) => filter === "all" || filter === i.type);
+  const visible = items
+    .filter((i) => i.type !== "note")
+    .flatMap<
+      CaptureItem & { sourceId?: string }
+    >((i) => [i, ...(i.type === "todo" ? (i.subtasks || []).map((t) => ({ ...i, id: t.id, sourceId: i.id, type: "task" as const, title: t.title + " · " + i.title, content: t.content || "", startDate: t.startDate || i.startDate, dueDate: t.dueDate || null, completed: t.completed })) : [])]);
   return (
     <motion.section
       className="panel calendar-screen"
@@ -62,7 +68,7 @@ export default function CalendarView({
           </button>
         </div>
       </header>
-      <p className="muted">생각과 할 일이 만나는 시간</p>
+      <p className="muted">Todo와 Task를 한눈에</p>
       <div className="weekday-row">
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <span key={d}>{d}</span>
@@ -105,7 +111,13 @@ export default function CalendarView({
                     <button
                       className="calendar-bar"
                       key={i.id}
-                      onClick={() => onSelect(i)}
+                      onClick={() =>
+                        onSelect(
+                          i.sourceId
+                            ? items.find((p) => p.id === i.sourceId)!
+                            : i,
+                        )
+                      }
                       title={`${i.title}: ${i.startDate} → ${i.dueDate || i.startDate}`}
                       style={{
                         gridColumn: `${start + 1} / ${end + 2}`,
@@ -129,22 +141,9 @@ export default function CalendarView({
           );
         })}
       </div>
-      <nav className="calendar-tabs">
-        {(["all", "todo", "task", "note"] as const).map((t) => (
-          <button
-            key={t}
-            className={filter === t ? "active" : ""}
-            onClick={() => setFilter(t)}
-          >
-            {t === "all"
-              ? "All"
-              : t === "todo"
-                ? "Todo"
-                : t === "task"
-                  ? "Task"
-                  : "Note"}
-          </button>
-        ))}
+      <nav className="calendar-tabs" aria-label="목록 바로가기">
+        <button onClick={() => onOpenList("todo")}>Todo 목록</button>
+        <button onClick={() => onOpenList("task")}>Task 목록</button>
       </nav>
     </motion.section>
   );

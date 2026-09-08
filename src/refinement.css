@@ -1,0 +1,439 @@
+/* Stable three-way classification, on both folded and expanded screens. */
+.home-stage {
+  background: #fffdf9;
+}
+.utility-bar .wordmark {
+  font-family: Georgia, serif;
+  font-size: 23px;
+  letter-spacing: 3px;
+}
+.spatial-home,
+.expanded .spatial-home {
+  inset: 76px 0 54px;
+}
+.theo-anchor,
+.expanded .theo-anchor {
+  width: 58px;
+  z-index: 40;
+}
+.theo-button,
+.expanded .theo-button {
+  min-height: 68px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.theo-art,
+.expanded .theo-art {
+  width: 49px;
+  height: 51px;
+}
+.theo-label {
+  font-size: 10px;
+}
+.expanded .theo-anchor::before {
+  display: none;
+}
+.note-position,
+.expanded .note-position {
+  left: 32px;
+  top: 49%;
+}
+.task-position,
+.expanded .task-position {
+  left: calc(100% - 32px);
+  top: 49%;
+}
+.todo-position,
+.expanded .todo-position {
+  left: 50%;
+  top: 12%;
+}
+.calendar-position,
+.expanded .calendar-position {
+  left: 50%;
+  top: 86%;
+  z-index: 10;
+}
+.expanded .calendar-position .theo-button {
+  width: 100%;
+  margin: 0;
+  flex-direction: column;
+  padding: 3px 0;
+}
+.expanded .calendar-position .theo-art {
+  width: 49px;
+  height: 51px;
+}
+.memo-anchor,
+.expanded .memo-anchor {
+  width: calc(100% - 158px);
+  max-width: 285px;
+  height: 270px;
+  max-height: 58%;
+  top: 49%;
+}
+.memo-inner,
+.expanded .memo-inner {
+  padding: 12px 13px;
+  gap: 9px;
+  border-radius: 21px;
+  border-color: #f0e6db;
+  box-shadow:
+    0 17px 45px #76574113,
+    0 2px 0 #fff inset;
+}
+.memo-handle {
+  min-height: 20px;
+}
+.memo-handle i {
+  width: 23px;
+  height: 3px;
+}
+.memo-handle i:last-child {
+  display: none;
+}
+.memo-title,
+.expanded .memo-title {
+  font-size: 21px;
+  line-height: 1.25;
+}
+.memo-content,
+.expanded .memo-content {
+  font-size: 13px;
+  min-height: 25px;
+  line-height: 1.6;
+}
+.memo-dates {
+  gap: 7px;
+}
+.memo-dates label > span,
+.expanded .memo-dates label > span {
+  font-size: 8px;
+  letter-spacing: 0.4px;
+}
+.memo-dates > label {
+  justify-content: flex-end;
+}
+.memo-dates > label > span {
+  min-height: 29px;
+  display: flex;
+  align-items: flex-start;
+}
+.memo-dates input,
+.expanded .memo-dates input,
+.is-focused .memo-dates input {
+  height: 30px;
+  min-height: 30px;
+  font-size: 9px;
+  padding: 5px 3px;
+}
+.memo-dates input:disabled {
+  opacity: 0.4;
+}
+.due-field {
+  gap: 6px;
+}
+.due-heading {
+  min-height: 29px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.due-heading > span {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.memo-dates .due-toggle {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  gap: 3px;
+  align-items: center;
+  cursor: pointer;
+}
+.memo-dates .due-toggle > span,
+.expanded .memo-dates .due-toggle > span {
+  font-size: 7px;
+  letter-spacing: 0;
+}
+.due-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  inset: 0;
+  cursor: pointer;
+}
+.due-toggle i {
+  width: 23px;
+  height: 13px;
+  background: #d7c9bb;
+  border-radius: 10px;
+  padding: 2px;
+  transition: background 0.2s;
+  pointer-events: none;
+}
+.due-toggle i::after {
+  content: "";
+  display: block;
+  width: 9px;
+  height: 9px;
+  background: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+.due-toggle input:checked + i {
+  background: #947256;
+}
+.due-toggle input:checked + i::after {
+  transform: translateX(10px);
+}
+.due-toggle input:focus-visible + i {
+  outline: 2px solid #947256;
+  outline-offset: 2px;
+}
+.due-toggle input:disabled ~ i {
+  opacity: 0.45;
+}
+.memo-anchor.is-focused,
+.expanded .memo-anchor.is-focused {
+  width: calc(100% - 132px);
+  max-width: 360px;
+  height: calc(100% - 128px);
+  max-height: 400px;
+  top: 49%;
+}
+.is-focused .memo-inner {
+  padding: 14px 12px;
+  gap: 10px;
+}
+.is-focused .memo-title {
+  font-size: 23px;
+}
+.is-focused .memo-content {
+  font-size: 15px;
+}
+.done-editing {
+  align-self: flex-end;
+  background: transparent;
+  color: #9a7e69;
+  font-size: 10px;
+  padding: 4px 0;
+  min-height: 22px;
+}
+.is-writing .spatial-home,
+.is-writing.expanded .spatial-home {
+  inset: 66px 0 18px;
+}
+.is-writing .todo-position,
+.is-writing.expanded .todo-position {
+  top: 30px;
+}
+.is-writing .calendar-position,
+.is-writing .home-caption {
+  visibility: hidden;
+  pointer-events: none;
+}
+.focus-overlay {
+  background: #00000008;
+}
+.home-caption {
+  font-size: 10px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+.folder-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.folder-heading h2 {
+  font-size: 15px;
+  margin: 0;
+}
+.folder-panel {
+  border-bottom: 1px solid #eee2d6;
+  padding-bottom: 18px;
+  margin-bottom: 16px;
+}
+.folder-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+.folder-tabs button {
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: #f1e9df;
+  font-size: 12px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.folder-tabs .active {
+  background: #80604a;
+  color: white;
+}
+.folder-create {
+  display: flex;
+  gap: 8px;
+  margin: 14px 0;
+}
+.folder-create input {
+  flex: 1;
+  width: 0;
+  border: 1px solid #decfbe;
+  border-radius: 12px;
+  padding: 10px;
+  background: white;
+  font-size: 14px;
+}
+.folder-select {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  font-size: 11px;
+  color: #9b806b;
+}
+.folder-select select {
+  padding: 8px;
+  max-width: 75%;
+  border: 1px solid #e6dace;
+  background: #fffdf9;
+  border-radius: 10px;
+  font-size: 12px;
+}
+.child-task {
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid #e8ddcf;
+  border-radius: 15px;
+  background: #fffdf9;
+}
+.child-task summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.child-task-fields {
+  height: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 0;
+}
+.child-task-fields .memo-dates input,
+.detail-memo .memo-dates input {
+  font-size: 12px;
+  height: 36px;
+}
+.child-task .secondary-btn {
+  margin: 5px 0;
+}
+@media (min-width: 680px) {
+  .note-position,
+  .expanded .note-position {
+    left: 23%;
+  }
+  .task-position,
+  .expanded .task-position {
+    left: 77%;
+  }
+  .theo-anchor,
+  .expanded .theo-anchor {
+    width: 80px;
+  }
+  .theo-art,
+  .expanded .theo-art {
+    width: 62px;
+    height: 64px;
+  }
+  .memo-anchor,
+  .expanded .memo-anchor {
+    width: 33%;
+    height: 320px;
+  }
+  .memo-anchor.is-focused,
+  .expanded .memo-anchor.is-focused {
+    width: 40%;
+    max-width: 440px;
+  }
+  .memo-dates input,
+  .expanded .memo-dates input,
+  .is-focused .memo-dates input {
+    font-size: 12px;
+  }
+  .is-writing .todo-position,
+  .is-writing.expanded .todo-position {
+    top: 35px;
+  }
+}
+@media (max-height: 550px) {
+  .is-writing .spatial-home,
+  .is-writing.expanded .spatial-home {
+    inset: 46px 0 8px;
+  }
+  .is-writing .memo-anchor.is-focused {
+    height: calc(100% - 90px);
+    max-height: none;
+    top: calc(50% + 22px);
+  }
+  .is-writing .todo-position,
+  .is-writing.expanded .todo-position {
+    top: 27px;
+  }
+  .is-writing .theo-art {
+    width: 40px;
+    height: 41px;
+  }
+  .is-writing .theo-button {
+    min-height: 53px;
+    gap: 2px;
+  }
+  .is-focused .memo-inner {
+    padding: 8px 10px;
+    gap: 5px;
+  }
+  .is-focused .memo-title {
+    font-size: 20px;
+  }
+  .is-focused .memo-content {
+    font-size: 14px;
+  }
+  .utility-bar,
+  .expanded .utility-bar {
+    padding-top: 9px;
+  }
+  .memo-handle {
+    min-height: 16px;
+  }
+}
+@media (max-width: 359px) {
+  .theo-anchor {
+    width: 48px;
+  }
+  .theo-art {
+    width: 40px;
+    height: 42px;
+  }
+  .memo-anchor {
+    width: calc(100% - 138px);
+  }
+  .memo-anchor.is-focused {
+    width: calc(100% - 122px);
+  }
+}

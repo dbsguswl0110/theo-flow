@@ -12,15 +12,26 @@ import {
   loadItemsRemote,
   saveItems,
   updateItemRemote,
+  loadFoldersRemote,
+  createFolderRemote,
 } from "./lib/storage";
 import type { CaptureItem, DraftItem, ItemType } from "./types";
 
 export default function App() {
+  const [folders, setFolders] = useState<string[]>([]);
+  const [viewportHeight, setViewportHeight] = useState(
+    window.visualViewport?.height || innerHeight,
+  );
   const [items, setItems] = useState<CaptureItem[]>(loadItems);
   const [focused, setFocused] = useState(false);
   const [toast, setToast] = useState("");
   const [accepted, setAccepted] = useState("");
   const [screen, setScreen] = useState("");
+  const [collectionBack, setCollectionBack] = useState("");
+  function openCollection(kind: string, back = "") {
+    setCollectionBack(back);
+    setScreen(kind);
+  }
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [intro, setIntro] = useState(true);
   const [layout, setLayout] = useState(
@@ -41,6 +52,30 @@ export default function App() {
   const expanded =
     layout === "expanded" ||
     (layout === "auto" && size.w >= 680 && size.w / size.h > 0.78);
+  useEffect(() => {
+    const resize = () =>
+      setViewportHeight(window.visualViewport?.height || innerHeight);
+    window.visualViewport?.addEventListener("resize", resize);
+    window.addEventListener("resize", resize);
+    return () => {
+      window.visualViewport?.removeEventListener("resize", resize);
+      window.removeEventListener("resize", resize);
+    };
+  }, []);
+  async function addFolder(name: string) {
+    pending.current++;
+    revision.current++;
+    try {
+      if (!(await createFolderRemote(name))) {
+        notify("폴더를 만들지 못했어요.");
+        return false;
+      }
+      setFolders((prev) => Array.from(new Set([...prev, name])).sort());
+      return true;
+    } finally {
+      pending.current--;
+    }
+  }
   const finishIntro = useCallback(() => setIntro(false), []);
   const notify = (message: string) => {
     setToast(message);
@@ -73,9 +108,11 @@ export default function App() {
       if (pending.current || document.hidden) return;
       const before = revision.current,
         data = await loadItemsRemote();
+      const remoteFolders = await loadFoldersRemote();
       if (!alive || pending.current || before !== revision.current) return;
       if (data) {
         setItems(data);
+        if (remoteFolders) setFolders(remoteFolders);
         setSync("동기화됨");
       } else setSync("연결 확인 필요");
     };
@@ -113,13 +150,13 @@ export default function App() {
       }
       setItems((prev) => [item, ...prev]);
       setSync("동기화됨");
-      setAccepted(type === "todo" && expanded ? "project" : type);
+      setAccepted(type);
       notify(
         type === "note"
           ? "노트에 메모가 등록되었습니다."
           : type === "task"
             ? "태스크가 등록되었습니다."
-            : "프로젝트 Todo가 등록되었습니다.",
+            : "Todo가 등록되었습니다.",
       );
       return true;
     } finally {
@@ -156,13 +193,11 @@ export default function App() {
     <main className="app-shell">
       <div
         ref={stage}
-        className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""}`}
+        style={{ height: viewportHeight }}
+        className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""}`}
       >
-        <div className="wallpaper" />
         <header className="utility-bar">
-          <span className="wordmark">
-            theo flow <small>생각을 담는 작은 공간</small>
-          </span>
+          <span className="wordmark">TEO</span>
           <nav aria-label="메뉴">
             <button onClick={() => setScreen("trash")}>Trash</button>
             <button onClick={() => setScreen("settings")}>Setting</button>
@@ -175,7 +210,7 @@ export default function App() {
             className="note-position"
             quiet={noMotion}
             accepted={accepted === "note"}
-            onClick={() => setScreen("note")}
+            onClick={() => openCollection("note")}
           />
           <FloatingTheo
             kind="task"
@@ -183,7 +218,7 @@ export default function App() {
             className="task-position"
             quiet={noMotion}
             accepted={accepted === "task"}
-            onClick={() => setScreen("task")}
+            onClick={() => openCollection("task")}
           />
           <FloatingTheo
             kind="todo"
@@ -191,18 +226,8 @@ export default function App() {
             className="todo-position"
             quiet={noMotion}
             accepted={accepted === "todo"}
-            onClick={() => setScreen(expanded ? "todos" : "project")}
+            onClick={() => openCollection("todo")}
           />
-          {expanded && (
-            <FloatingTheo
-              kind="project"
-              label="Project"
-              className="project-position"
-              quiet={noMotion}
-              accepted={accepted === "project"}
-              onClick={() => setScreen("project")}
-            />
-          )}
           <FloatingTheo
             kind="calendar"
             label="Calendar"
@@ -231,9 +256,7 @@ export default function App() {
             quiet={noMotion}
           />
         </div>
-        <footer className="home-caption">
-          적고, 가볍게 보내세요.<span>← Note · ↑ Project Todo · Task →</span>
-        </footer>
+        <footer className="home-caption">적고, 가볍게 보내세요.</footer>
         <AnimatePresence>
           {toast && (
             <motion.div
@@ -251,17 +274,21 @@ export default function App() {
           {screen === "calendar" && (
             <CalendarView
               items={visible}
+              onOpenList={(kind) => openCollection(kind, "calendar")}
               onClose={() => setScreen("")}
               onSelect={(i) => setSelectedId(i.id)}
               origin={origin}
               quiet={noMotion}
             />
           )}
-          {["note", "task", "project", "todos", "trash"].includes(screen) && (
+          {["note", "task", "todo", "trash"].includes(screen) && (
             <Collection
+              key={screen}
               kind={screen}
+              folders={folders}
+              onAddFolder={addFolder}
               items={items}
-              onClose={() => setScreen("")}
+              onClose={() => setScreen(collectionBack)}
               onSelect={(i) => setSelectedId(i.id)}
               onSave={saveItem}
             />
@@ -287,7 +314,7 @@ export default function App() {
                 >
                   <option value="auto">화면에 맞게 자동</option>
                   <option value="folded">접힌 화면 · 십자형</option>
-                  <option value="expanded">펼친 화면 · 양쪽 독</option>
+                  <option value="expanded">펼친 화면 · 넓은 십자형</option>
                 </select>
               </label>
               <label className="setting-row">
@@ -300,8 +327,9 @@ export default function App() {
               </label>
               <p>데이터 상태: {sync}</p>
               <p className="muted">
-                Note · Task · Project Todo는 같은 캘린더에 모입니다. Todo
-                독에서는 프로젝트의 하위 할 일을 확인할 수 있어요.
+                위 Todo는 프로젝트 역할을 하며 내부에 Task를 추가할 수 있어요.
+                캘린더에는 Todo와 Task만 나타납니다. Note는 폴더로 분류할 수
+                있어요.
               </p>
               <button
                 className="secondary-btn"
@@ -318,6 +346,7 @@ export default function App() {
             <ItemDetail
               key={selected.id}
               item={selected}
+              folders={folders}
               onClose={() => setSelectedId(null)}
               onSave={saveItem}
             />

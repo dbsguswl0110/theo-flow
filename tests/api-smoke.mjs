@@ -30,13 +30,27 @@ try {
   assert.equal(all.find((i) => i.id === id).subTodos.length, 1);
   const updated = {
     ...item,
-    subtasks: [{ id: crypto.randomUUID(), title: "edited", completed: true }],
+    subtasks: [
+      {
+        id: crypto.randomUUID(),
+        title: "edited",
+        completed: true,
+        content: "child task content",
+        startDate: "2026-09-09",
+        dueDate: "2026-09-12",
+      },
+    ],
     deletedAt: new Date().toISOString(),
   };
   assert.equal((await request("/api/items/" + id, "PUT", updated)).status, 200);
   all = await (await request("/api/items")).json();
   assert.ok(all.find((i) => i.id === id).deleted_at);
   assert.equal(all.find((i) => i.id === id).subTodos[0].completed, true);
+  assert.equal(
+    all.find((i) => i.id === id).subTodos[0].content,
+    "child task content",
+  );
+  assert.equal(all.find((i) => i.id === id).subTodos[0].due_date, "2026-09-12");
   assert.equal(
     (await request("/api/items/" + id, "PUT", { ...updated, deletedAt: null }))
       .status,
@@ -59,6 +73,26 @@ try {
     201,
   );
   const photo = new FormData();
+  assert.equal(
+    (await request("/api/folders", "POST", { name: "Local QA folder" })).status,
+    201,
+  );
+  assert.ok(
+    (await (await request("/api/folders")).json()).includes("Local QA folder"),
+  );
+  assert.equal(
+    (
+      await request("/api/items/" + noteId, "PUT", {
+        ...item,
+        id: noteId,
+        type: "note",
+        folder: "Local QA folder",
+      })
+    ).status,
+    200,
+  );
+  all = await (await request("/api/items")).json();
+  assert.equal(all.find((i) => i.id === noteId).folder, "Local QA folder");
   photo.append(
     "photo",
     new Blob(

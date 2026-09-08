@@ -43,7 +43,7 @@ export default function Startup({ onDone }: { onDone: () => void }) {
         </div>
       ))}
       <div className="startup-caption">
-        <strong>theo flow</strong>
+        <strong>TEO</strong>
         <span>Write · Swipe · Organise</span>
       </div>
       <button className="skip-intro" onClick={onDone}>

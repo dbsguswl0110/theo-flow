@@ -43,37 +43,38 @@ export default function MemoFields({
           />
         </label>
         <div className="due-field">
-          <label>
+          <div className="due-heading">
             <span>Due date</span>
-            <select
-              aria-label="마감일 방식"
-              value={draft.dueDate === null ? "none" : "date"}
-              disabled={disabled}
-              onFocus={onFocus}
-              onChange={(e) =>
-                onChange({
-                  ...draft,
-                  dueDate: e.target.value === "none" ? null : draft.startDate,
-                })
-              }
-            >
-              <option value="none">None</option>
-              <option value="date">날짜 지정</option>
-            </select>
-          </label>
-          {draft.dueDate !== null && (
-            <input
-              aria-label="마감일"
-              type="date"
-              min={draft.startDate}
-              value={draft.dueDate}
-              disabled={disabled}
-              onFocus={onFocus}
-              onChange={(e) =>
-                onChange({ ...draft, dueDate: e.target.value || null })
-              }
-            />
-          )}
+            <label className="due-toggle">
+              <span>NONE</span>
+              <input
+                type="checkbox"
+                role="switch"
+                aria-label="마감일 사용"
+                checked={draft.dueDate !== null}
+                disabled={disabled}
+                onChange={(e) =>
+                  onChange({
+                    ...draft,
+                    dueDate: e.target.checked ? draft.startDate : null,
+                  })
+                }
+              />
+              <i aria-hidden="true" />
+              <span>DUE</span>
+            </label>
+          </div>
+          <input
+            aria-label="마감일"
+            type="date"
+            min={draft.startDate}
+            value={draft.dueDate || ""}
+            disabled={disabled || draft.dueDate === null}
+            onFocus={onFocus}
+            onChange={(e) =>
+              onChange({ ...draft, dueDate: e.target.value || draft.startDate })
+            }
+          />
         </div>
       </div>
     </>

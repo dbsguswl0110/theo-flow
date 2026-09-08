@@ -17,6 +17,24 @@ export default {
     const url = new URL(request.url);
     if (!url.pathname.startsWith("/api/")) return env.ASSETS.fetch(request);
     try {
+      if (url.pathname === "/api/folders" && request.method === "GET") {
+        const { results } = await env.DB.prepare(
+          "SELECT name FROM folders ORDER BY name",
+        ).all();
+        return json(results.map((f) => f.name));
+      }
+      if (url.pathname === "/api/folders" && request.method === "POST") {
+        const b = await request.json(),
+          name = String(b.name || "").trim();
+        if (!name || name.length > 60 || name === "*")
+          return json({ error: "Valid folder name required." }, 400);
+        await env.DB.prepare(
+          "INSERT OR IGNORE INTO folders (name,created_at) VALUES (?,?)",
+        )
+          .bind(name, new Date().toISOString())
+          .run();
+        return json({ name }, 201);
+      }
       if (url.pathname === "/api/items" && request.method === "GET") {
         const { results } = await env.DB.prepare(
           "SELECT * FROM items ORDER BY created_at DESC",
@@ -92,17 +110,41 @@ export default {
       if (itemMatch && request.method === "PUT") {
         const b = await request.json(),
           now = new Date().toISOString();
-        if (!String(b.title || "").trim() || !validDates(b))
+        if (
+          !String(b.title || "").trim() ||
+          !validDates(b) ||
+          (Array.isArray(b.subtasks) &&
+            b.subtasks.some(
+              (s) =>
+                !validDates({
+                  startDate: s.startDate || b.startDate,
+                  dueDate: s.dueDate,
+                }),
+            ))
+        )
           return json({ error: "Title and valid dates required." }, 400);
         const existing = await env.DB.prepare(
-          "SELECT type FROM items WHERE id=?",
+          "SELECT type,folder FROM items WHERE id=?",
         )
           .bind(itemMatch[1])
           .first();
         if (!existing) return json({ error: "Not found" }, 404);
+        const folder =
+          existing.type === "note"
+            ? b.folder === undefined
+              ? existing.folder
+              : b.folder || null
+            : null;
+        if (
+          folder &&
+          !(await env.DB.prepare("SELECT name FROM folders WHERE name=?")
+            .bind(folder)
+            .first())
+        )
+          return json({ error: "Folder not found" }, 400);
         const statements = [
           env.DB.prepare(
-            "UPDATE items SET title=?,content=?,start_date=?,due_date=?,completed=?,updated_at=?,deleted_at=? WHERE id=?",
+            "UPDATE items SET title=?,content=?,start_date=?,due_date=?,completed=?,updated_at=?,deleted_at=?,folder=? WHERE id=?",
           ).bind(
             String(b.title).trim(),
             String(b.content || ""),
@@ -111,6 +153,7 @@ export default {
             b.completed ? 1 : 0,
             now,
             b.deletedAt || null,
+            folder,
             itemMatch[1],
           ),
         ];
@@ -124,13 +167,16 @@ export default {
             for (const [index, subtask] of b.subtasks.slice(0, 100).entries())
               statements.push(
                 env.DB.prepare(
-                  "INSERT INTO sub_todos (id,project_id,title,completed,sort_order) VALUES (?,?,?,?,?)",
+                  "INSERT INTO sub_todos (id,project_id,title,completed,sort_order,content,start_date,due_date) VALUES (?,?,?,?,?,?,?,?)",
                 ).bind(
                   subtask.id || crypto.randomUUID(),
                   itemMatch[1],
                   String(subtask.title || ""),
                   subtask.completed ? 1 : 0,
                   index,
+                  String(subtask.content || ""),
+                  subtask.startDate || b.startDate,
+                  subtask.dueDate || null,
                 ),
               );
         }
