@@ -182,6 +182,16 @@ export default function MemoPad({
             onFocus={onFocus}
             disabled={busy}
           />
+          <label className="compose-photo-add">
+            {draft.photo ? `📷 ${draft.photo.name}` : "＋ 사진 첨부 (선택)"}
+            <input
+              type="file"
+              accept="image/*"
+              hidden
+              disabled={busy}
+              onChange={(e) => setDraft((prev) => ({ ...prev, photo: e.target.files?.[0] || null }))}
+            />
+          </label>
           {error && (
             <p className="form-error" role="alert">
               {error}

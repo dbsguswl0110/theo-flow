@@ -1,6 +1,9 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
-import type { CaptureItem } from "../types";
+import { useState, type FormEvent } from "react";
+import type { CaptureItem, DraftItem, ItemType } from "../types";
+import { deleteItemRemote } from "../lib/storage";
+import { emptyDraft } from "../lib/dates";
+import MemoFields from "./MemoFields";
 export default function Collection({
   kind,
   items,
@@ -9,6 +12,7 @@ export default function Collection({
   onSave,
   folders,
   onAddFolder,
+  onCreate,
 }: {
   kind: string;
   items: CaptureItem[];
@@ -17,11 +21,16 @@ export default function Collection({
   onSave: (i: CaptureItem) => Promise<boolean>;
   folders: string[];
   onAddFolder: (name: string) => Promise<boolean>;
+  onCreate: (kind: ItemType, draft: DraftItem) => Promise<boolean>;
 }) {
   const [busy, setBusy] = useState(false),
     [folder, setFolder] = useState("*"),
     [adding, setAdding] = useState(false),
-    [name, setName] = useState("");
+    [name, setName] = useState(""),
+    [selected, setSelected] = useState<string[]>([]),
+    [composing, setComposing] = useState(false),
+    [draft, setDraft] = useState<DraftItem>(emptyDraft),
+    [message, setMessage] = useState("");
   async function save(item: CaptureItem) {
     if (busy) return;
     setBusy(true);
@@ -53,7 +62,46 @@ export default function Collection({
         ? "Task"
         : kind === "note"
           ? "Note"
-          : "Trash";
+        : "Trash";
+  const selectable = visible;
+  async function moveSelectedToTrash() {
+    if (!selected.length || busy) return;
+    setBusy(true);
+    try {
+      for (const id of selected) {
+        const item = items.find((i) => i.id === id);
+        if (item) await save({ ...item, deletedAt: new Date().toISOString() });
+      }
+      setSelected([]);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function permanentlyDeleteSelected() {
+    if (!selected.length || busy) return;
+    setBusy(true);
+    try {
+      for (const id of selected) await deleteItemRemote(id);
+      setSelected([]);
+      window.location.reload();
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function createFromPanel(e: FormEvent) {
+    e.preventDefault();
+    if (!draft.title.trim() || !draft.startDate || busy) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      if (await onCreate(kind as ItemType, draft)) {
+        setDraft(emptyDraft());
+        setComposing(false);
+      } else setMessage("저장하지 못했어요.");
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <motion.section
       className="panel collection-panel"
@@ -68,6 +116,26 @@ export default function Collection({
         <h1>{title}</h1>
         <span>{visible.length + childTasks.length}</span>
       </header>
+      {kind !== "trash" && (kind === "note" || kind === "task") && (
+        <button className="primary-btn collection-create" onClick={() => setComposing(!composing)}>
+          {composing ? "작성 닫기" : `+ 새 ${title}`}
+        </button>
+      )}
+      {composing && (
+        <form className="inline-composer" onSubmit={createFromPanel}>
+          <MemoFields draft={draft} onChange={setDraft} disabled={busy} />
+          {kind === "note" && <p className="muted">사진은 저장 후 상세 화면에서 첨부할 수 있어요.</p>}
+          {message && <p className="form-error">{message}</p>}
+          <button className="primary-btn" disabled={busy || !draft.title.trim()}>저장</button>
+        </form>
+      )}
+      {selectable.length > 0 && (
+        <div className="selection-toolbar">
+          <label><input type="checkbox" checked={selected.length === selectable.length} onChange={(e) => setSelected(e.target.checked ? selectable.map(i => i.id) : [])} /> 전체선택</label>
+          <span>{selected.length}개 선택</span>
+          {kind === "trash" ? <button className="danger-btn" disabled={!selected.length || busy} onClick={() => void permanentlyDeleteSelected()}>영구삭제</button> : <button className="secondary-btn" disabled={!selected.length || busy} onClick={() => void moveSelectedToTrash()}>휴지통으로</button>}
+        </div>
+      )}
       <p className="muted">
         {kind === "todo"
           ? "Todo를 열어 안에 Task를 나눠 담으세요."
@@ -145,6 +213,7 @@ export default function Collection({
       )}
       {visible.map((i) => (
         <article className="collection-card" key={i.id}>
+          <input className="collection-check" type="checkbox" checked={selected.includes(i.id)} aria-label={`${i.title} 선택`} onChange={(e) => setSelected(prev => e.target.checked ? [...prev, i.id] : prev.filter(id => id !== i.id))} />
           <button className="collection-open" onClick={() => onSelect(i)}>
             <strong>{i.title}</strong>
             <span>{i.content || "내용 없음"}</span>

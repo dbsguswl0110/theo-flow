@@ -30,4 +30,5 @@ export type DraftItem = {
   content: string;
   startDate: string;
   dueDate: string | null;
+  photo?: File | null;
 };

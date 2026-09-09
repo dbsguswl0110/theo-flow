@@ -77,6 +77,15 @@ export async function updateItemRemote(item: CaptureItem): Promise<boolean> {
   }
 }
 
+export async function deleteItemRemote(id: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/items/${id}`, { method: "DELETE" });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function uploadPhotoRemote(itemId: string, file: File) {
   const form = new FormData();
   form.append("photo", file);

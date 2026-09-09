@@ -14,6 +14,7 @@ import {
   updateItemRemote,
   loadFoldersRemote,
   createFolderRemote,
+  uploadPhotoRemote,
 } from "./lib/storage";
 import type { CaptureItem, DraftItem, ItemType } from "./types";
 
@@ -128,8 +129,9 @@ export default function App() {
   }, []);
   async function register(type: ItemType, draft: DraftItem) {
     const now = new Date().toISOString();
+    const { photo: attachedPhoto, ...fields } = draft;
     const item: CaptureItem = {
-      ...draft,
+      ...fields,
       id: crypto.randomUUID(),
       type,
       title: draft.title.trim(),
@@ -147,6 +149,14 @@ export default function App() {
       if (!ok) {
         setSync("연결 확인 필요");
         return false;
+      }
+      if (type === "note" && attachedPhoto) {
+        try {
+          const uploaded = await uploadPhotoRemote(item.id, attachedPhoto);
+          item.photos = [uploaded];
+        } catch {
+          notify("메모는 저장했지만 사진을 첨부하지 못했어요.");
+        }
       }
       setItems((prev) => [item, ...prev]);
       setSync("동기화됨");
@@ -197,7 +207,7 @@ export default function App() {
         className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""}`}
       >
         <header className="utility-bar">
-          <span className="wordmark">TEO</span>
+          <span className="wordmark" aria-hidden="true" />
           <nav aria-label="메뉴">
             <button onClick={() => setScreen("trash")}>Trash</button>
             <button onClick={() => setScreen("settings")}>Setting</button>
@@ -291,6 +301,7 @@ export default function App() {
               onClose={() => setScreen(collectionBack)}
               onSelect={(i) => setSelectedId(i.id)}
               onSave={saveItem}
+              onCreate={(kind, draft) => register(kind as ItemType, draft)}
             />
           )}
           {screen === "settings" && (

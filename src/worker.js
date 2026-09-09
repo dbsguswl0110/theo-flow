@@ -36,6 +36,20 @@ export default {
         return json({ name }, 201);
       }
       if (url.pathname === "/api/items" && request.method === "GET") {
+        // Keep the trash recoverable for three days, then remove its records and R2 photos.
+        const expiry = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+        const expired = (await env.DB.prepare(
+          "SELECT id FROM items WHERE deleted_at IS NOT NULL AND deleted_at <= ?",
+        ).bind(expiry).all()).results;
+        for (const old of expired) {
+          const photos = (await env.DB.prepare("SELECT object_key FROM photos WHERE item_id=?").bind(old.id).all()).results;
+          await Promise.all(photos.map((p) => env.PHOTOS.delete(p.object_key)));
+          await env.DB.batch([
+            env.DB.prepare("DELETE FROM photos WHERE item_id=?").bind(old.id),
+            env.DB.prepare("DELETE FROM sub_todos WHERE project_id=?").bind(old.id),
+            env.DB.prepare("DELETE FROM items WHERE id=?").bind(old.id),
+          ]);
+        }
         const { results } = await env.DB.prepare(
           "SELECT * FROM items ORDER BY created_at DESC",
         ).all();
