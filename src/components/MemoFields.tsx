@@ -32,7 +32,7 @@ export default function MemoFields({
       />
       <div className="memo-dates">
         <label>
-          <span>Start date</span>
+          <span>시작일</span>
           <input
             aria-label="시작일"
             type="date"
@@ -44,9 +44,9 @@ export default function MemoFields({
         </label>
         <div className="due-field">
           <div className="due-heading">
-            <span>Due date</span>
+            <span>마감일</span>
             <label className="due-toggle">
-              <span>NONE</span>
+            <span>없음</span>
               <input
                 type="checkbox"
                 role="switch"
@@ -61,7 +61,7 @@ export default function MemoFields({
                 }
               />
               <i aria-hidden="true" />
-              <span>DUE</span>
+            <span>지정</span>
             </label>
           </div>
           <input

@@ -17,6 +17,7 @@ export default function MemoPad({
   onRegister,
   quiet,
   active,
+  onSwipePreview,
 }: {
   focused: boolean;
   onFocus: () => void;
@@ -24,10 +25,12 @@ export default function MemoPad({
   onRegister: (type: ItemType, draft: DraftItem) => Promise<boolean>;
   quiet: boolean;
   active: boolean;
+  onSwipePreview?: (type: ItemType | null) => void;
 }) {
   const [draft, setDraft] = useState<DraftItem>(emptyDraft);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [photoPreview, setPhotoPreview] = useState("");
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const locked = useRef(false);
   const anchor = useRef<HTMLDivElement>(null);
@@ -35,6 +38,15 @@ export default function MemoPad({
   const dragControls = useDragControls();
   const x = useMotionValue(0),
     y = useMotionValue(0);
+  useEffect(() => {
+    if (!draft.photo) {
+      setPhotoPreview("");
+      return;
+    }
+    const url = URL.createObjectURL(draft.photo);
+    setPhotoPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [draft.photo]);
   useEffect(() => {
     void controls.start({
       scale: active ? 1 : 0,
@@ -152,8 +164,10 @@ export default function MemoPad({
               ?.focus();
           }
         }}
+        onDrag={(_, info) => onSwipePreview?.(directionFor(info))}
         onDragEnd={(_, info) => {
           const type = directionFor(info);
+          onSwipePreview?.(null);
           if (type) void send(type);
           else void returnHome();
         }}
@@ -183,7 +197,22 @@ export default function MemoPad({
             disabled={busy}
           />
           <label className="compose-photo-add">
-            {draft.photo ? `📷 ${draft.photo.name}` : "＋ 사진 첨부 (선택)"}
+            {draft.photo ? (
+              <>
+                {photoPreview && <img src={photoPreview} alt="첨부할 사진 미리보기" />}
+                <span>{draft.photo.name}</span>
+                <button
+                  type="button"
+                  aria-label="첨부 사진 제거"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDraft((prev) => ({ ...prev, photo: null }));
+                  }}
+                >
+                  ×
+                </button>
+              </>
+            ) : "＋ 사진 추가 (선택)"}
             <input
               type="file"
               accept="image/*"

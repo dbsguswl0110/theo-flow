@@ -27,6 +27,7 @@ export default function App() {
   const [focused, setFocused] = useState(false);
   const [toast, setToast] = useState("");
   const [accepted, setAccepted] = useState("");
+  const [swipePreview, setSwipePreview] = useState<ItemType | null>(null);
   const [screen, setScreen] = useState("");
   const [collectionBack, setCollectionBack] = useState("");
   function openCollection(kind: string, back = "") {
@@ -204,6 +205,7 @@ export default function App() {
       <div
         ref={stage}
         style={{ height: viewportHeight }}
+        data-swipe={swipePreview || undefined}
         className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""}`}
       >
         <header className="utility-bar">
@@ -263,6 +265,7 @@ export default function App() {
             onFocus={() => setFocused(true)}
             onBlurFocus={() => setFocused(false)}
             onRegister={register}
+            onSwipePreview={setSwipePreview}
             quiet={noMotion}
           />
         </div>
