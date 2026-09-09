@@ -32,7 +32,6 @@ export default function Collection({
     [draft, setDraft] = useState<DraftItem>(emptyDraft),
     [message, setMessage] = useState("");
   async function save(item: CaptureItem) {
-    if (busy) return;
     setBusy(true);
     try {
       await onSave(item);
