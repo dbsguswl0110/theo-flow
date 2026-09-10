@@ -1,7 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@android:id/text1"
-    android:layout_width="0dp" android:layout_height="0dp"
-    android:layout_columnWeight="1" android:layout_rowWeight="1"
-    android:gravity="center" android:textSize="9sp" android:textColor="#6E5544"
-    android:background="@drawable/theo_widget_cell_background" />
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:background="@drawable/theo_widget_cell_background">
+<TextView android:id="@android:id/text1" android:layout_width="28dp" android:layout_height="28dp" android:layout_gravity="top|center_horizontal" android:gravity="center" android:includeFontPadding="false" android:textSize="13sp" android:textColor="#171717"/>
+</FrameLayout>

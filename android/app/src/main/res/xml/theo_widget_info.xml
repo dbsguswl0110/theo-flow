@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="280dp"
-    android:minHeight="110dp"
+    android:minHeight="280dp"
     android:minResizeWidth="220dp"
-    android:minResizeHeight="90dp"
+    android:minResizeHeight="260dp"
     android:updatePeriodMillis="1800000"
     android:initialLayout="@layout/theo_widget"
     android:resizeMode="horizontal|vertical"
