@@ -141,33 +141,30 @@ public class TheoCalendarWidgetProvider extends AppWidgetProvider {
             RemoteViews heading=new RemoteViews(context.getPackageName(),R.layout.theo_widget_heading);
             heading.setTextViewText(android.R.id.text1,label);views.addView(R.id.widget_weekdays,heading);
         }
-        for(int week=0;week<6;week++){
-            RemoteViews row=new RemoteViews(context.getPackageName(),R.layout.theo_widget_week);
-            for(int column=0;column<7;column++){
-                int d=week*7+column,shown=0;
-                RemoteViews cell=new RemoteViews(context.getPackageName(),R.layout.theo_widget_cell);
-                cell.setTextViewText(android.R.id.text1,inMonth[d]?String.valueOf(Integer.parseInt(dates[d].substring(8))):"");
-                cell.setTextColor(android.R.id.text1,dates[d].equals(todayKey)?Color.rgb(220,35,45):Color.BLACK);
-                cell.removeAllViews(R.id.widget_events);
-                StringBuilder accessible=new StringBuilder(dates[d]);
-                for(int lane=0;lane<LANES;lane++){
-                    Event event=inMonth[d]?slots[d][lane]:null;
-                    RemoteViews badge=new RemoteViews(context.getPackageName(),R.layout.theo_widget_event);
-                    boolean visible=event!=null;
-                    boolean duration=visible&&event.duration;
-                    boolean label=visible&&(!duration||column==0||dates[d].equals(event.start)||dates[d].endsWith("-01"));
-                    badge.setTextViewText(R.id.widget_event_title,label?event.title:"");
-                    badge.setViewVisibility(R.id.widget_event_dot,visible&&!duration?View.VISIBLE:View.INVISIBLE);
-                    badge.setViewVisibility(R.id.widget_event_line,duration?View.VISIBLE:View.INVISIBLE);
-                    if(visible){shown++;accessible.append(", ").append(event.title);}
-                    cell.addView(R.id.widget_events,badge);
-                }
-                int more=Math.max(0,counts[d]-shown);
-                cell.setTextViewText(R.id.widget_more,more>0?"+"+more:"");
-                cell.setContentDescription(android.R.id.text1,accessible.toString());
-                row.addView(R.id.widget_week,cell);
+        for(int d=0;d<42;d++){
+            int column=d%7, shown=Math.min(counts[d],LANES);
+            RemoteViews cell=new RemoteViews(context.getPackageName(),R.layout.theo_widget_cell);
+            cell.setTextViewText(android.R.id.text1,inMonth[d]?String.valueOf(Integer.parseInt(dates[d].substring(8))):"");
+            cell.setTextColor(android.R.id.text1,dates[d].equals(todayKey)?Color.rgb(220,35,45):Color.BLACK);
+            StringBuilder accessible=new StringBuilder(dates[d]);
+            for(int lane=0;lane<LANES;lane++){
+                Event event=inMonth[d]?slots[d][lane]:null;
+                int dot=lane==0?R.id.widget_dot_1:R.id.widget_dot_2;
+                int title=lane==0?R.id.widget_event_1:R.id.widget_event_2;
+                int line=lane==0?R.id.widget_line_1:R.id.widget_line_2;
+                boolean visible=event!=null;
+                boolean duration=visible&&event.duration;
+                boolean label=visible&&(!duration||dates[d].equals(event.start)||dates[d].endsWith("-01"));
+                cell.setViewVisibility(dot,visible?View.VISIBLE:View.INVISIBLE);
+                cell.setViewVisibility(title,label?View.VISIBLE:View.INVISIBLE);
+                cell.setViewVisibility(line,duration?View.VISIBLE:View.INVISIBLE);
+                cell.setTextViewText(title,label?event.title:"");
+                if(visible)accessible.append(", ").append(event.title);
             }
-            views.addView(R.id.widget_grid,row);
+            int more=Math.max(0,counts[d]-shown);
+            cell.setTextViewText(R.id.widget_more,more>0?"+"+more:"");
+            cell.setContentDescription(android.R.id.text1,accessible.toString());
+            views.addView(R.id.widget_grid,cell);
         }
         Intent open=new Intent(context,MainActivity.class);
         views.setOnClickPendingIntent(R.id.widget_root,PendingIntent.getActivity(context,id,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));

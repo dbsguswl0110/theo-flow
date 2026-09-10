@@ -1,5 +1,24 @@
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical">
-<TextView android:id="@android:id/text1" android:layout_width="match_parent" android:layout_height="12dp" android:gravity="center" android:includeFontPadding="false" android:textSize="6.5dp" android:textColor="#171717"/>
-<LinearLayout android:id="@+id/widget_events" android:layout_width="match_parent" android:layout_height="28dp" android:orientation="vertical"/>
-<TextView android:id="@+id/widget_more" android:layout_width="match_parent" android:layout_height="9dp" android:textSize="7dp" android:includeFontPadding="false" android:textColor="#796B61" android:gravity="center"/>
-</LinearLayout>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="0dp" android:layout_height="48dp" android:layout_columnWeight="1"
+    android:layout_gravity="fill_horizontal">
+    <TextView android:id="@android:id/text1" android:layout_width="match_parent" android:layout_height="12dp"
+        android:gravity="center" android:includeFontPadding="false" android:textSize="6.5sp" android:textColor="#171717" />
+    <ImageView android:id="@+id/widget_dot_1" android:layout_width="3dp" android:layout_height="3dp"
+        android:layout_marginStart="2dp" android:layout_marginTop="17dp" android:src="@drawable/theo_widget_dot" android:contentDescription="@null" />
+    <TextView android:id="@+id/widget_event_1" android:layout_width="match_parent" android:layout_height="12dp"
+        android:layout_marginStart="6dp" android:layout_marginEnd="1dp" android:layout_marginTop="13dp"
+        android:includeFontPadding="false" android:textSize="7.5sp" android:textColor="#352C26" android:maxLines="1" android:ellipsize="end" />
+    <ImageView android:id="@+id/widget_line_1" android:layout_width="match_parent" android:layout_height="1dp"
+        android:layout_marginStart="2dp" android:layout_marginEnd="1dp" android:layout_marginTop="25dp"
+        android:src="@drawable/theo_widget_line" android:scaleType="fitXY" android:contentDescription="@null" />
+    <ImageView android:id="@+id/widget_dot_2" android:layout_width="3dp" android:layout_height="3dp"
+        android:layout_marginStart="2dp" android:layout_marginTop="32dp" android:src="@drawable/theo_widget_dot" android:contentDescription="@null" />
+    <TextView android:id="@+id/widget_event_2" android:layout_width="match_parent" android:layout_height="12dp"
+        android:layout_marginStart="6dp" android:layout_marginEnd="1dp" android:layout_marginTop="28dp"
+        android:includeFontPadding="false" android:textSize="7.5sp" android:textColor="#352C26" android:maxLines="1" android:ellipsize="end" />
+    <ImageView android:id="@+id/widget_line_2" android:layout_width="match_parent" android:layout_height="1dp"
+        android:layout_marginStart="2dp" android:layout_marginEnd="1dp" android:layout_marginTop="40dp"
+        android:src="@drawable/theo_widget_line" android:scaleType="fitXY" android:contentDescription="@null" />
+    <TextView android:id="@+id/widget_more" android:layout_width="match_parent" android:layout_height="9dp"
+        android:layout_gravity="bottom" android:textSize="7sp" android:includeFontPadding="false" android:textColor="#796B61" android:gravity="center" />
+</FrameLayout>
