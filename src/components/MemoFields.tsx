@@ -1,4 +1,5 @@
 import type { DraftItem } from "../types";
+import { useEffect, useRef } from "react";
 export default function MemoFields({
   draft,
   onChange,
@@ -10,6 +11,13 @@ export default function MemoFields({
   onFocus?: () => void;
   disabled?: boolean;
 }) {
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const textarea = contentRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 360)}px`;
+  }, [draft.content]);
   return (
     <>
       <input
@@ -22,6 +30,7 @@ export default function MemoFields({
         onChange={(e) => onChange({ ...draft, title: e.target.value })}
       />
       <textarea
+        ref={contentRef}
         aria-label="내용"
         className="memo-content"
         placeholder="생각을 적어보세요…"
@@ -46,7 +55,7 @@ export default function MemoFields({
           <div className="due-heading">
             <span>마감일</span>
             <label className="due-toggle">
-            <span>없음</span>
+              <span>없음</span>
               <input
                 type="checkbox"
                 role="switch"
@@ -61,7 +70,7 @@ export default function MemoFields({
                 }
               />
               <i aria-hidden="true" />
-            <span>지정</span>
+              <span>지정</span>
             </label>
           </div>
           <input

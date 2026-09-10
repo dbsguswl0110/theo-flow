@@ -9,16 +9,16 @@ export default function CalendarView({
   onSelect,
   origin,
   quiet,
-  onOpenList,
 }: {
   items: CaptureItem[];
   onClose: () => void;
   onSelect: (i: CaptureItem) => void;
   origin: string;
   quiet: boolean;
-  onOpenList: (kind: string) => void;
 }) {
   const [month, setMonth] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => dayKey(new Date()));
+  const [listFilter, setListFilter] = useState<"all" | "todo" | "task">("all");
 
   const days = useMemo(() => {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);
@@ -34,6 +34,14 @@ export default function CalendarView({
     .flatMap<
       CaptureItem & { sourceId?: string }
     >((i) => [i, ...(i.type === "todo" ? (i.subtasks || []).map((t) => ({ ...i, id: t.id, sourceId: i.id, type: "task" as const, title: t.title + " · " + i.title, content: t.content || "", startDate: t.startDate || i.startDate, dueDate: t.dueDate || null, completed: t.completed })) : [])]);
+  const selectedItems = visible.filter((item) => {
+    const end = item.dueDate || item.startDate;
+    return (
+      selectedDate >= item.startDate &&
+      selectedDate <= end &&
+      (listFilter === "all" || item.type === listFilter)
+    );
+  });
   return (
     <motion.section
       className="panel calendar-screen"
@@ -90,9 +98,14 @@ export default function CalendarView({
                     key={dayKey(d)}
                     className={`calendar-day ${d.getMonth() !== month.getMonth() ? "muted" : ""}`}
                   >
-                    <span className={dayKey(d) === dayKey() ? "today" : ""}>
+                    <button
+                      type="button"
+                      className={`${dayKey(d) === dayKey() ? "today" : ""} ${selectedDate === dayKey(d) ? "selected" : ""}`}
+                      onClick={() => setSelectedDate(dayKey(d))}
+                      aria-label={`${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 일정`}
+                    >
                       {d.getDate()}
-                    </span>
+                    </button>
                   </div>
                 ))}
               </div>
@@ -141,10 +154,57 @@ export default function CalendarView({
           );
         })}
       </div>
-      <nav className="calendar-tabs" aria-label="목록 바로가기">
-        <button onClick={() => onOpenList("todo")}>Todo 목록</button>
-        <button onClick={() => onOpenList("task")}>Task 목록</button>
+      <nav className="calendar-tabs" aria-label="선택한 날짜 목록 필터">
+        {(["all", "todo", "task"] as const).map((filter) => (
+          <button
+            key={filter}
+            className={listFilter === filter ? "active" : ""}
+            onClick={() => setListFilter(filter)}
+          >
+            {filter === "all" ? "전체" : filter === "todo" ? "Todo" : "Task"}
+          </button>
+        ))}
       </nav>
+      <section
+        className="calendar-selected-list"
+        aria-label={`${selectedDate} 일정 목록`}
+      >
+        <div className="calendar-selected-heading">
+          <strong>{selectedDate.split("-").join(". ")}</strong>
+          <span>{selectedItems.length}개</span>
+        </div>
+        {selectedItems.length ? (
+          selectedItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`calendar-list-item ${item.type}`}
+              onClick={() =>
+                onSelect(
+                  item.sourceId
+                    ? items.find((p) => p.id === item.sourceId)!
+                    : item,
+                )
+              }
+            >
+              <i aria-hidden="true" />
+              <span>
+                <b>{item.title}</b>
+                <small>
+                  {item.type === "todo" ? "Todo" : "Task"}
+                  {item.dueDate
+                    ? ` · ${item.startDate} → ${item.dueDate}`
+                    : ` · ${item.startDate}`}
+                </small>
+              </span>
+            </button>
+          ))
+        ) : (
+          <p className="calendar-list-empty">
+            선택한 날짜에 Todo와 Task가 없어요.
+          </p>
+        )}
+      </section>
     </motion.section>
   );
 }

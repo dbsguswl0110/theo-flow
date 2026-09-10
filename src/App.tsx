@@ -205,6 +205,15 @@ export default function App() {
       setOrigin(`${b.x + b.width / 2 - a.x}px ${b.y + b.height / 2 - a.y}px`);
     setScreen("calendar");
   }
+  useEffect(() => {
+    const openFromWidget = (event: Event) => {
+      const mode = (event as CustomEvent<string>).detail;
+      if (mode === "calendar") openCalendar();
+      else if (["note", "task", "todo"].includes(mode)) openCollection(mode);
+    };
+    window.addEventListener("theo-widget-open", openFromWidget);
+    return () => window.removeEventListener("theo-widget-open", openFromWidget);
+  }, []);
   const selected = items.find((i) => i.id === selectedId);
   const visible = items.filter((i) => !i.deletedAt);
   return (
@@ -294,7 +303,6 @@ export default function App() {
           {screen === "calendar" && (
             <CalendarView
               items={visible}
-              onOpenList={(kind) => openCollection(kind, "calendar")}
               onClose={() => setScreen("")}
               onSelect={(i) => setSelectedId(i.id)}
               origin={origin}

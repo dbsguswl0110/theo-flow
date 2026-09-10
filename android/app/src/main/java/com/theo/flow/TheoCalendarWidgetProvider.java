@@ -42,7 +42,7 @@ public class TheoCalendarWidgetProvider extends AppWidgetProvider {
     }
     private void update(Context context, AppWidgetManager manager, int id) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.theo_widget);
-        Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse("https://theo-flow.dbsguswl0110.workers.dev/"));
+        Intent open = new Intent(context, MainActivity.class).putExtra("theo_open", "calendar");
         views.setOnClickPendingIntent(R.id.widget_root, PendingIntent.getActivity(context,id,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         views.setTextViewText(R.id.widget_status, "Updating · Tap to open TEO");
         manager.updateAppWidget(id, views);
