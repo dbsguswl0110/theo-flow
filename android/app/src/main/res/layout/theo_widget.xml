@@ -1,7 +1,6 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:id="@+id/widget_root" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="16dp" android:background="@drawable/theo_widget_background">
-<TextView android:id="@+id/widget_month" android:layout_width="match_parent" android:layout_height="32dp" android:gravity="center_vertical" android:text="Calendar" android:textColor="#292421" android:textSize="18sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
-<LinearLayout android:id="@+id/widget_weekdays" android:layout_width="match_parent" android:layout_height="30dp" android:orientation="horizontal" android:layout_marginBottom="4dp"/>
+<TextView android:id="@+id/widget_month" android:layout_width="match_parent" android:layout_height="28dp" android:gravity="center_vertical" android:text="Calendar" android:textColor="#292421" android:textSize="16dp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end"/>
+<LinearLayout android:id="@+id/widget_weekdays" android:layout_width="match_parent" android:layout_height="22dp" android:orientation="horizontal"/>
 <LinearLayout android:id="@+id/widget_grid" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical"/>
-<LinearLayout android:id="@+id/widget_tasks" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="8dp"/>
-<TextView android:id="@+id/widget_status" android:layout_width="match_parent" android:layout_height="18dp" android:textColor="#796B61" android:textSize="10sp" android:maxLines="1" android:ellipsize="end"/>
+<TextView android:id="@+id/widget_status" android:layout_width="match_parent" android:layout_height="14dp" android:textColor="#796B61" android:textSize="8dp" android:maxLines="1" android:ellipsize="end"/>
 </LinearLayout>
