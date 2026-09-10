@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import {
   animate,
   motion,
@@ -84,7 +84,7 @@ export default function Startup({
   const [geometry, setGeometry] = useState<Geometry | null>(null);
   const [artReady, setArtReady] = useState(false);
   const progress = useMotionValue(0);
-  useLayoutEffect(() => {
+  useEffect(() => {
     const root = stage.current;
     if (!root) return;
     const measure = () => {
@@ -114,9 +114,7 @@ export default function Startup({
       });
     };
     measure();
-    const frames = [0, 40, 160, 420].map((delay) =>
-      window.setTimeout(measure, delay),
-    );
+    const poll = window.setInterval(measure, 100);
     const observer = new ResizeObserver(measure);
     observer.observe(root);
     root.querySelectorAll(".theo-anchor").forEach((el) => observer.observe(el));
@@ -124,7 +122,7 @@ export default function Startup({
     const mutations = new MutationObserver(measure);
     mutations.observe(root, { attributes: true, attributeFilter: ["class"] });
     return () => {
-      frames.forEach(clearTimeout);
+      clearInterval(poll);
       observer.disconnect();
       mutations.disconnect();
     };
