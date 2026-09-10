@@ -502,3 +502,22 @@
   .due-field { display: grid; grid-template-columns: 1fr 1fr; align-items: end; gap: 8px; }
   .due-heading { min-height: 38px; }
 }
+
+/* Entry-to-edit continuity: expand vertically when the icon gutters limit width. */
+.memo-anchor.is-focused, .expanded .memo-anchor.is-focused {
+  width: min(360px, calc(100% - 132px));
+}
+@media (max-width: 380px) {
+  .memo-anchor, .expanded .memo-anchor,
+  .memo-anchor.is-focused, .expanded .memo-anchor.is-focused {
+    width: calc(100% - 128px);
+  }
+}
+@media (min-width: 680px) {
+  .memo-anchor, .expanded .memo-anchor {
+    width: min(320px, calc(54% - 92px));
+  }
+  .memo-anchor.is-focused, .expanded .memo-anchor.is-focused {
+    width: min(440px, max(320px, 40%), calc(54% - 92px));
+  }
+}

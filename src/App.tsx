@@ -36,6 +36,7 @@ export default function App() {
   }
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [intro, setIntro] = useState(true);
+  const [introRevealed, setIntroRevealed] = useState(false);
   const [layout, setLayout] = useState(
     () => localStorage.getItem("theo-layout") || "auto",
   );
@@ -79,6 +80,12 @@ export default function App() {
     }
   }
   const finishIntro = useCallback(() => setIntro(false), []);
+  const revealIntro = useCallback(() => setIntroRevealed(true), []);
+  useEffect(() => {
+    stage.current
+      ?.querySelectorAll(".utility-bar,.spatial-home,.home-caption")
+      .forEach((el) => el.toggleAttribute("inert", intro));
+  }, [intro]);
   const notify = (message: string) => {
     setToast(message);
     clearTimeout(toastTimer.current);
@@ -206,7 +213,7 @@ export default function App() {
         ref={stage}
         style={{ height: viewportHeight }}
         data-swipe={swipePreview || undefined}
-        className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""}`}
+        className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""} ${intro && !introRevealed ? "intro-waiting" : ""}`}
       >
         <header className="utility-bar">
           <span className="wordmark" aria-hidden="true" />
@@ -220,7 +227,7 @@ export default function App() {
             kind="note"
             label="Note"
             className="note-position"
-            quiet={noMotion}
+            quiet={noMotion || intro}
             accepted={accepted === "note"}
             onClick={() => openCollection("note")}
           />
@@ -228,7 +235,7 @@ export default function App() {
             kind="task"
             label="Task"
             className="task-position"
-            quiet={noMotion}
+            quiet={noMotion || intro}
             accepted={accepted === "task"}
             onClick={() => openCollection("task")}
           />
@@ -236,7 +243,7 @@ export default function App() {
             kind="todo"
             label="Todo"
             className="todo-position"
-            quiet={noMotion}
+            quiet={noMotion || intro}
             accepted={accepted === "todo"}
             onClick={() => openCollection("todo")}
           />
@@ -244,7 +251,7 @@ export default function App() {
             kind="calendar"
             label="Calendar"
             className="calendar-position"
-            quiet={noMotion}
+            quiet={noMotion || intro}
             accepted={false}
             onClick={openCalendar}
           />
@@ -260,7 +267,7 @@ export default function App() {
             />
           )}
           <MemoPad
-            active={!intro}
+            active={!intro || introRevealed}
             focused={focused}
             onFocus={() => setFocused(true)}
             onBlurFocus={() => setFocused(false)}
@@ -349,6 +356,8 @@ export default function App() {
                 className="secondary-btn"
                 onClick={() => {
                   setScreen("");
+                  setFocused(false);
+                  setIntroRevealed(false);
                   setIntro(true);
                 }}
               >
@@ -365,7 +374,14 @@ export default function App() {
               onSave={saveItem}
             />
           )}
-          {intro && <Startup onDone={finishIntro} />}
+          {intro && (
+            <Startup
+              stage={stage}
+              onReveal={revealIntro}
+              onDone={finishIntro}
+              quiet={noMotion}
+            />
+          )}
         </AnimatePresence>
       </div>
     </main>

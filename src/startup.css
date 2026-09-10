@@ -1,0 +1,68 @@
+/* The launch uses the real home layout as its destination, not a second layout. */
+.startup.launch {
+  background: transparent;
+  isolation: isolate;
+}
+.launch-veil {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+}
+.launch-liquid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.launch-caption {
+  position: absolute;
+  left: 24px;
+  right: 24px;
+  bottom: 17%;
+  display: grid;
+  gap: 10px;
+  text-align: center;
+  pointer-events: none;
+}
+.launch-caption strong {
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: 5px;
+  color: #79583f;
+}
+.launch-caption span {
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #826d5c;
+}
+.launch .skip-intro {
+  min-height: 48px;
+  min-width: 72px;
+  color: #796553;
+  font-size: 12px;
+  border-radius: 24px;
+}
+.launch .skip-intro:focus-visible {
+  outline: 2px solid #937052;
+  outline-offset: 2px;
+}
+.home-stage .theo-anchor,
+.home-stage .utility-bar,
+.home-stage .home-caption {
+  transition: opacity 0.55s ease;
+}
+.home-stage.intro-waiting .theo-anchor,
+.home-stage.intro-waiting .utility-bar,
+.home-stage.intro-waiting .home-caption {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-stage .theo-anchor,
+  .home-stage .utility-bar,
+  .home-stage .home-caption {
+    transition: none;
+  }
+}

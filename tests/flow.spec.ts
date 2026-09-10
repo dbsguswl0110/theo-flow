@@ -90,9 +90,12 @@ for (const [width, height] of [
     const idle = await page.locator(".memo-pad").boundingBox();
     await page.locator(".memo-title").fill("입력 중");
     await page.waitForTimeout(350);
-    expect(
-      (await page.locator(".memo-pad").boundingBox())!.width,
-    ).toBeGreaterThan(idle!.width);
+    const editing = (await page.locator(".memo-pad").boundingBox())!;
+    // Narrow layouts grow vertically rather than covering the swipe destinations.
+    expect(editing.width).toBeGreaterThanOrEqual(idle!.width - 0.5);
+    expect(editing.width * editing.height).toBeGreaterThan(
+      idle!.width * idle!.height,
+    );
     await assertSpace(page, width, height);
     await expect(page.locator('[data-target="calendar"]')).toBeHidden();
     await expect(
