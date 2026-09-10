@@ -114,6 +114,9 @@ export default function Startup({
       });
     };
     measure();
+    const frames = [0, 40, 160, 420].map((delay) =>
+      window.setTimeout(measure, delay),
+    );
     const observer = new ResizeObserver(measure);
     observer.observe(root);
     root.querySelectorAll(".theo-anchor").forEach((el) => observer.observe(el));
@@ -121,6 +124,7 @@ export default function Startup({
     const mutations = new MutationObserver(measure);
     mutations.observe(root, { attributes: true, attributeFilter: ["class"] });
     return () => {
+      frames.forEach(clearTimeout);
       observer.disconnect();
       mutations.disconnect();
     };
