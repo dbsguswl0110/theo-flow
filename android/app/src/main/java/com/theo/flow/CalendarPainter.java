@@ -43,7 +43,7 @@ public final class CalendarPainter {
                 c.drawText(label,left+col*(day+.5f)-text.measureText(label)/2,y+14,text);
             }
             List<CalendarData.Event> visible=CalendarData.week(events,week);
-            int capacity=Math.max(0,(int)((row-29)/17));
+            int capacity=Math.max(1,(int)((row-18)/17));
             int shown=Math.min(visible.size(),capacity);
             for(int lane=0;lane<shown;lane++){
                 CalendarData.Event event=visible.get(lane);
@@ -61,7 +61,8 @@ public final class CalendarPainter {
             }
             if(visible.size()>shown){
                 text.setAlpha(255);text.setTextSize(9);text.setColor(Color.rgb(119,90,68));
-                c.drawText("+"+(visible.size()-shown)+" · 앱에서 전체 보기",left+3,y+row-3,text);
+                String more="+"+(visible.size()-shown);
+                c.drawText(more,right-text.measureText(more),y+14,text);
             }
         }
         if(pending) {
