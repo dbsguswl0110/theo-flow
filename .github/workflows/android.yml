@@ -41,9 +41,35 @@ jobs:
         run: ./gradlew testDebugUnitTest assembleDebug --no-daemon
 
       - name: Upload APK artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Enable emulator acceleration
+        run: |
+          sudo chmod 666 /dev/kvm
+
+      - name: Test actual Android widget rendering
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          script: |
+            cd android && ./gradlew connectedDebugAndroidTest --no-daemon
+            adb pull /sdcard/Android/data/com.theo.flow/files/widget-review widget-review
+
+      - name: Upload widget verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: widget-verification
+          path: |
+            widget-review/
+            android/app/build/reports/androidTests/
+            android/app/build/reports/tests/

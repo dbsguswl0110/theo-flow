@@ -1,5 +1,0 @@
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="14dp">
-<TextView android:id="@+id/widget_event_title" android:layout_width="match_parent" android:layout_height="11dp" android:paddingStart="5dp" android:paddingEnd="1dp" android:includeFontPadding="false" android:textSize="9dp" android:textColor="#352C26" android:maxLines="1" android:ellipsize="end"/>
-<ImageView android:id="@+id/widget_event_dot" android:layout_width="4dp" android:layout_height="4dp" android:layout_gravity="start|center_vertical" android:src="@drawable/theo_widget_dot" android:contentDescription="@null"/>
-<ImageView android:id="@+id/widget_event_line" android:layout_width="match_parent" android:layout_height="2dp" android:layout_gravity="bottom" android:src="@drawable/theo_widget_line" android:scaleType="fitXY" android:contentDescription="@null"/>
-</FrameLayout>

@@ -7,6 +7,7 @@ import android.os.Bundle;
 public class MainActivity extends BridgeActivity {
     @Override public void onCreate(Bundle state) { super.onCreate(state); dispatchWidgetIntent(getIntent()); }
     @Override public void onResume() { super.onResume(); refreshCalendarWidget(); }
+    @Override public void onStop() { super.onStop(); refreshCalendarWidget(); }
     @Override public void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); dispatchWidgetIntent(intent); }
     private void dispatchWidgetIntent(Intent intent) {
         String mode = intent == null ? null : intent.getStringExtra("theo_open");
