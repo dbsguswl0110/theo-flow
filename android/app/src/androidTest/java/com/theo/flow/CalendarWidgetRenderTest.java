@@ -29,8 +29,9 @@ public class CalendarWidgetRenderTest {
             final int width=size[0],height=size[1];
             InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{
                 AppWidgetHostView host=new AppWidgetHostView(context);
-                AppWidgetProviderInfo info=new AppWidgetProviderInfo();
-                info.provider=new android.content.ComponentName(context,TheoCalendarWidgetProvider.class);
+                android.content.ComponentName component=new android.content.ComponentName(context,TheoCalendarWidgetProvider.class);
+                AppWidgetProviderInfo info=android.appwidget.AppWidgetManager.getInstance(context).getInstalledProviders()
+                    .stream().filter(p->component.equals(p.provider)).findFirst().orElseThrow(()->new AssertionError("Calendar receiver not registered"));
                 host.setAppWidget(1,info);host.setPadding(0,0,0,0);
                 RemoteViews remote=TheoCalendarWidgetProvider.frame(context,1,width,height,LocalDate.of(2026,9,10),data,false,2);
                 host.updateAppWidget(remote);
