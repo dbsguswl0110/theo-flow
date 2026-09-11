@@ -61,7 +61,7 @@ jobs:
           target: google_apis
           disable-animations: true
           script: |
-            cd android && ./gradlew connectedDebugAndroidTest --no-daemon
+            cd android && ./gradlew :app:connectedDebugAndroidTest --no-daemon
             adb pull /sdcard/Android/data/com.theo.flow/files/widget-review widget-review
 
       - name: Upload widget verification
