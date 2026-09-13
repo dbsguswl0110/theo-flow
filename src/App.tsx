@@ -29,12 +29,32 @@ export default function App() {
   const [accepted, setAccepted] = useState("");
   const [swipePreview, setSwipePreview] = useState<ItemType | null>(null);
   const [screen, setScreen] = useState("");
-  const [collectionBack, setCollectionBack] = useState("");
-  function openCollection(kind: string, back = "") {
-    setCollectionBack(back);
-    setScreen(kind);
-  }
+  const routeStack = useRef<Array<{ screen: string; selectedId: string | null }>>([
+    { screen: "", selectedId: null },
+  ]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  function navigate(nextScreen: string) {
+    routeStack.current.push({ screen: nextScreen, selectedId: null });
+    window.history.pushState({ theoRoute: nextScreen, selectedId: null }, "", window.location.href);
+    setSelectedId(null);
+    setScreen(nextScreen);
+  }
+  function navigateBack() {
+    if (routeStack.current.length > 1) window.history.back();
+    else {
+      setScreen("");
+      setSelectedId(null);
+    }
+  }
+  function selectItem(item: CaptureItem) {
+    routeStack.current.push({ screen, selectedId: item.id });
+    window.history.pushState({ theoRoute: screen, selectedId: item.id }, "", window.location.href);
+    setSelectedId(item.id);
+  }
+  function openCollection(kind: string, back = "") {
+    void back;
+    navigate(kind);
+  }
   const [intro, setIntro] = useState(true);
   const [introRevealed, setIntroRevealed] = useState(false);
   const [layout, setLayout] = useState(
@@ -55,6 +75,26 @@ export default function App() {
   const expanded =
     layout === "expanded" ||
     (layout === "auto" && size.w >= 680 && size.w / size.h > 0.78);
+  useEffect(() => {
+    const current = window.history.state || {};
+    window.history.replaceState(
+      { ...current, theoRoute: "", selectedId: null },
+      "",
+      window.location.href,
+    );
+    const handlePopState = (event: PopStateEvent) => {
+      if (routeStack.current.length > 1) routeStack.current.pop();
+      const fallback = routeStack.current[routeStack.current.length - 1];
+      const state = event.state as
+        | { theoRoute?: string; selectedId?: string | null }
+        | null;
+      setScreen(state?.theoRoute ?? fallback?.screen ?? "");
+      setSelectedId(state?.selectedId ?? fallback?.selectedId ?? null);
+      setFocused(false);
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
   useEffect(() => {
     const resize = () =>
       setViewportHeight(window.visualViewport?.height || innerHeight);
@@ -203,7 +243,7 @@ export default function App() {
         ?.getBoundingClientRect();
     if (a && b)
       setOrigin(`${b.x + b.width / 2 - a.x}px ${b.y + b.height / 2 - a.y}px`);
-    setScreen("calendar");
+    navigate("calendar");
   }
   useEffect(() => {
     const openFromWidget = (event: Event) => {
@@ -227,8 +267,8 @@ export default function App() {
         <header className="utility-bar">
           <span className="wordmark" aria-hidden="true" />
           <nav aria-label="메뉴">
-            <button onClick={() => setScreen("trash")}>Trash</button>
-            <button onClick={() => setScreen("settings")}>Setting</button>
+            <button onClick={() => navigate("trash")}>Trash</button>
+            <button onClick={() => navigate("settings")}>Setting</button>
           </nav>
         </header>
         <div className="spatial-home">
@@ -303,9 +343,10 @@ export default function App() {
           {screen === "calendar" && (
             <CalendarView
               items={visible}
-              onClose={() => setScreen("")}
-              onSelect={(i) => setSelectedId(i.id)}
+              onClose={navigateBack}
+              onSelect={selectItem}
               onSave={saveItem}
+              onOpenNotes={() => openCollection("note", "calendar")}
               origin={origin}
               quiet={noMotion}
             />
@@ -317,8 +358,8 @@ export default function App() {
               folders={folders}
               onAddFolder={addFolder}
               items={items}
-              onClose={() => setScreen(collectionBack)}
-              onSelect={(i) => setSelectedId(i.id)}
+              onClose={navigateBack}
+              onSelect={selectItem}
               onSave={saveItem}
               onCreate={(kind, draft) => register(kind as ItemType, draft)}
             />
@@ -331,7 +372,7 @@ export default function App() {
               exit={{ opacity: 0 }}
             >
               <header className="panel-header">
-                <button aria-label="설정 닫기" onClick={() => setScreen("")}>
+                <button aria-label="설정 닫기" onClick={navigateBack}>
                   ←
                 </button>
                 <h1>Setting</h1>
@@ -364,7 +405,7 @@ export default function App() {
               <button
                 className="secondary-btn"
                 onClick={() => {
-                  setScreen("");
+                  navigateBack();
                   setFocused(false);
                   setIntroRevealed(false);
                   setIntro(true);
@@ -379,7 +420,7 @@ export default function App() {
               key={selected.id}
               item={selected}
               folders={folders}
-              onClose={() => setSelectedId(null)}
+              onClose={navigateBack}
               onSave={saveItem}
             />
           )}

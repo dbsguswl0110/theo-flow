@@ -33,9 +33,9 @@ function includesDate(item: CalendarEntry, date: string) {
 }
 
 function titleSize(title: string) {
-  if (title.length > 34) return 14;
-  if (title.length > 22) return 16;
-  return 18;
+  if (title.length > 34) return 8;
+  if (title.length > 22) return 9;
+  return 10;
 }
 
 export default function CalendarView({
@@ -43,6 +43,7 @@ export default function CalendarView({
   onClose,
   onSelect,
   onSave,
+  onOpenNotes,
   origin,
   quiet,
 }: {
@@ -50,6 +51,7 @@ export default function CalendarView({
   onClose: () => void;
   onSelect: (i: CaptureItem) => void;
   onSave: (i: CaptureItem) => Promise<boolean>;
+  onOpenNotes: () => void;
   origin: string;
   quiet: boolean;
 }) {
@@ -58,6 +60,7 @@ export default function CalendarView({
   const [selectedDate, setSelectedDate] = useState(today);
   // Show all three information columns on entry; choosing a day narrows them together.
   const [scope, setScope] = useState<"date" | "all">("all");
+  const [viewMode, setViewMode] = useState<"day" | "timeline">("day");
   const [completing, setCompleting] = useState<string[]>([]);
 
   const calendarItems = useMemo(() => expandCalendarItems(items), [items]);
@@ -95,6 +98,29 @@ export default function CalendarView({
     ...column,
     items: [...column.items].sort((a, b) => `${a.startDate}-${a.title}`.localeCompare(`${b.startDate}-${b.title}`)),
   })), [notes, scope, selectedDate, tasks, todos]);
+
+  const timelineGroups = useMemo(() => {
+    const monthStart = dayKey(new Date(month.getFullYear(), month.getMonth(), 1));
+    const monthEnd = dayKey(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+    const entries = [...calendarItems, ...notes].filter((item) => {
+      if (!item.startDate) return false;
+      const end = item.dueDate || item.startDate;
+      return item.startDate <= monthEnd && end >= monthStart;
+    });
+    const grouped = new Map<string, CalendarEntry[]>();
+    entries.forEach((item) => {
+      const key = item.startDate;
+      const current = grouped.get(key) || [];
+      if (!current.some((entry) => entry.id === item.id)) current.push(item);
+      grouped.set(key, current);
+    });
+    return [...grouped.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, groupedItems]) => ({
+        date,
+        items: groupedItems.sort((a, b) => `${a.type}-${a.title}`.localeCompare(`${b.type}-${b.title}`)),
+      }));
+  }, [calendarItems, month, notes]);
 
   const sourceFor = (entry: CalendarEntry) =>
     entry.sourceId ? items.find((item) => item.id === entry.sourceId) : entry;
@@ -160,6 +186,15 @@ export default function CalendarView({
         </div>
       </header>
 
+      <div className="calendar-view-switch" role="group" aria-label="캘린더 보기 방식">
+        <button type="button" className={viewMode === "day" ? "is-active" : ""} onClick={() => setViewMode("day")}>
+          요일별 보기
+        </button>
+        <button type="button" className={viewMode === "timeline" ? "is-active" : ""} onClick={() => setViewMode("timeline")}>
+          리스트 보기
+        </button>
+      </div>
+
       <div className="calendar-split-layout">
         <section className="calendar-month-panel" aria-label={`${monthLabel} 월간 캘린더`}>
           <div className="calendar-weekday-row" aria-hidden="true">
@@ -210,7 +245,7 @@ export default function CalendarView({
           </p>
         </section>
 
-        <aside className="calendar-information-panel" aria-label="To Do, Task, Note 정보">
+        {viewMode === "day" ? <aside className="calendar-information-panel" aria-label="To Do, Task, Note 정보">
           <div className="calendar-information-heading">
             <div><span className="calendar-kicker">INFORMATION</span><h2>{scope === "date" ? selectedLabel : "All items"}</h2></div>
             <button className="calendar-scope-button" onClick={() => setScope((current) => current === "date" ? "all" : "date")}>
@@ -236,10 +271,7 @@ export default function CalendarView({
                         <button type="button" className="calendar-information-open" onClick={() => parent && onSelect(parent)}>
                           <strong style={{ fontSize: `${titleSize(item.title)}px` }}>{item.title}</strong>
                           <span>{item.content || "내용 없음"}</span>
-                          <small>
-                            {item.type === "todo" ? "To Do" : item.type === "task" ? "Task" : "Note"}
-                            {item.startDate ? ` · ${item.startDate}` : ""}{item.dueDate ? ` → ${item.dueDate}` : ""}
-                          </small>
+                          <small>{item.type === "todo" ? "To Do" : item.type === "task" ? "Task" : "Note"}</small>
                         </button>
                       </article>
                     );
@@ -250,7 +282,34 @@ export default function CalendarView({
               </section>
             ))}
           </div>
-        </aside>
+        </aside> : <aside className="calendar-timeline-panel" aria-label="월간 리스트">
+          <div className="calendar-information-heading">
+            <div><span className="calendar-kicker">TIMELINE</span><h2>{monthLabel}</h2></div>
+            <button className="calendar-scope-button" onClick={onOpenNotes}>노트 목록</button>
+          </div>
+          <div className="calendar-timeline-list">
+            {timelineGroups.length ? timelineGroups.map((group) => (
+              <section className="calendar-timeline-day" key={group.date}>
+                <h3>{new Date(`${group.date}T00:00:00`).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "short" })}</h3>
+                {group.items.map((item) => {
+                  const parent = sourceFor(item);
+                  const isCompleting = completing.includes(item.id);
+                  return (
+                    <article className={`calendar-timeline-row ${item.type} ${isCompleting ? "is-completing" : ""}`} key={`${group.date}-${item.id}`}>
+                      {item.type !== "note" ? (
+                        <input type="checkbox" checked={item.completed} onChange={(event) => void toggleCompleted(item, event.target.checked)} aria-label={`${item.title} 완료`} />
+                      ) : <i className="timeline-dot" aria-hidden="true" />}
+                      <button type="button" className="calendar-timeline-open" onClick={() => parent && onSelect(parent)}>
+                        <strong>{item.title}</strong>
+                        <small>{item.type === "todo" ? "To Do" : item.type === "task" ? "Task" : "Note"}{item.dueDate ? ` · ${item.startDate} → ${item.dueDate}` : ""}</small>
+                      </button>
+                    </article>
+                  );
+                })}
+              </section>
+            )) : <div className="calendar-information-empty"><span>✦</span><p>기록이 없습니다</p><small>이 달에 날짜가 있는 항목을 추가해보세요.</small></div>}
+          </div>
+        </aside>}
       </div>
     </motion.section>
   );
