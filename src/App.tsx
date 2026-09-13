@@ -305,6 +305,7 @@ export default function App() {
               items={visible}
               onClose={() => setScreen("")}
               onSelect={(i) => setSelectedId(i.id)}
+              onSave={saveItem}
               origin={origin}
               quiet={noMotion}
             />
