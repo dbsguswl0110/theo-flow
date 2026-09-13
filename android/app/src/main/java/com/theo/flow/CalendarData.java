@@ -19,7 +19,11 @@ public final class CalendarData {
         }
     }
     static String field(JSONObject o,String camel,String snake) {
-        return o.isNull(camel)?o.optString(snake,""):o.optString(camel,"");
+        // Android coerces JSONObject.NULL to the literal string "null".
+        // Check both aliases before conversion (server dates/deleted_at are nullable).
+        if(!o.isNull(camel))return o.optString(camel,"");
+        if(!o.isNull(snake))return o.optString(snake,"");
+        return "";
     }
     static boolean done(JSONObject o) {return o.optBoolean("completed")||o.optInt("completed",0)==1;}
     static Event event(JSONObject o,String fallback,String suffix) {

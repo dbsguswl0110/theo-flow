@@ -20,7 +20,22 @@ import static org.junit.Assert.*;
 @RunWith(AndroidJUnit4.class)
 public class CalendarWidgetRenderTest {
     static JSONArray fixture() throws Exception {
-        return new JSONArray("[{\"id\":\"1\",\"type\":\"todo\",\"title\":\"월간 보고서\",\"start_date\":\"2026-09-09\",\"due_date\":\"2026-09-12\"},{\"id\":\"2\",\"type\":\"task\",\"title\":\"회의\",\"start_date\":\"2026-09-10\"},{\"id\":\"3\",\"type\":\"task\",\"title\":\"다음 주 준비\",\"start_date\":\"2026-09-13\",\"due_date\":\"2026-09-15\"}]");
+        return new JSONArray("[{\"id\":\"1\",\"type\":\"todo\",\"title\":\"월간 보고서\",\"start_date\":\"2026-09-09\",\"due_date\":\"2026-09-12\",\"deleted_at\":null},{\"id\":\"2\",\"type\":\"task\",\"title\":\"회의\",\"start_date\":\"2026-09-10\",\"due_date\":null,\"deleted_at\":null},{\"id\":\"3\",\"type\":\"task\",\"title\":\"다음 주 준비\",\"start_date\":\"2026-09-13\",\"due_date\":\"2026-09-15\",\"deleted_at\":null}]");
+    }
+    @Test public void serverNullFieldsKeepActiveTasksAndTodoChildren() throws Exception {
+        JSONArray input=fixture();
+        input.getJSONObject(0).put("subTodos",new JSONArray("[{\"id\":\"child\",\"title\":\"자료 정리\",\"start_date\":null,\"due_date\":null,\"deleted_at\":null}]"));
+        input.put(new org.json.JSONObject("{\"id\":\"trash\",\"type\":\"task\",\"start_date\":\"2026-09-10\",\"deleted_at\":\"2026-09-11T00:00:00Z\"}"));
+        input.put(new org.json.JSONObject("{\"id\":\"note\",\"type\":\"note\",\"start_date\":\"2026-09-10\",\"deleted_at\":null}"));
+        java.util.List<CalendarData.Event> result=CalendarData.parse(input);
+        assertEquals("Keep three active parents plus Todo child",4,result.size());
+        CalendarData.Event child=result.stream().filter(e->e.id.equals("child")).findFirst().get();
+        assertEquals(LocalDate.of(2026,9,9),child.start);
+        assertFalse(child.due);
+        CalendarData.Event task=result.stream().filter(e->e.id.equals("2")).findFirst().get();
+        assertFalse("Null due date is an undated deadline, not an invalid date",task.due);
+        assertEquals(task.start,task.end);
+        assertEquals("",CalendarData.field(new org.json.JSONObject("{\"deletedAt\":null,\"deleted_at\":null}"),"deletedAt","deleted_at"));
     }
     @Test public void remoteViewsInflatesRendersAndReappliesAtFoldSizes() throws Exception {
         Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
