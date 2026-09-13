@@ -1473,3 +1473,230 @@
     height: auto;
   }
 }
+
+/* Notes and collection pages: compact, scan-first layout with no dead bands. */
+.collection-panel {
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-bottom: max(14px, env(safe-area-inset-bottom));
+}
+.collection-panel .panel-header {
+  min-height: 42px;
+  margin-bottom: 9px;
+}
+.collection-panel .panel-header button {
+  min-width: 36px;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+  border-radius: 11px;
+}
+.collection-panel .panel-header h1 {
+  font-size: 19px;
+  font-weight: 650;
+}
+.collection-panel .panel-header > span {
+  font-size: 11px;
+}
+.collection-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 31px;
+  margin-bottom: 7px;
+}
+.collection-intro .muted {
+  margin: 0;
+  font-size: 10px;
+  line-height: 1.35;
+}
+.collection-create {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  gap: 4px;
+  min-height: 32px;
+  margin: 0;
+  padding: 6px 9px;
+  border-radius: 10px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.collection-create span {
+  font-size: 15px;
+  line-height: 1;
+}
+.inline-composer {
+  gap: 7px;
+  margin: 0 0 8px;
+  padding: 10px;
+  border-radius: 14px;
+}
+.inline-composer .primary-btn {
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 11px;
+}
+.selection-toolbar {
+  min-height: 28px;
+  gap: 7px;
+  margin: 0 0 8px;
+  padding: 5px 0 7px;
+  font-size: 10px;
+}
+.selection-toolbar label {
+  gap: 4px;
+}
+.selection-toolbar input {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+.selection-toolbar .secondary-btn,
+.selection-toolbar .danger-btn {
+  min-height: 27px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 9px;
+}
+.folder-panel {
+  margin: 0 0 9px;
+  padding: 8px 0 9px;
+  border-bottom: 1px solid #eee2d6;
+}
+.folder-heading h2 {
+  font-size: 12px;
+}
+.folder-heading .secondary-btn {
+  min-height: 27px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  font-size: 9px;
+}
+.folder-create {
+  gap: 5px;
+  margin: 8px 0;
+}
+.folder-create input {
+  min-height: 32px;
+  padding: 7px 8px;
+  border-radius: 9px;
+  font-size: 11px;
+}
+.folder-create .primary-btn {
+  min-height: 32px;
+  padding: 6px 9px;
+  border-radius: 9px;
+  font-size: 10px;
+}
+.folder-tabs {
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-top: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.folder-tabs::-webkit-scrollbar {
+  display: none;
+}
+.folder-tabs button {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 9px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+.collection-list {
+  display: grid;
+  gap: 6px;
+}
+.collection-card {
+  display: grid;
+  grid-template-columns: 17px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 5px;
+  border-radius: 13px;
+  box-shadow: 0 3px 11px #76574108;
+}
+.collection-check {
+  position: static;
+  grid-column: 1;
+  grid-row: 1;
+  width: 13px;
+  height: 13px;
+  margin: 0;
+}
+.collection-open {
+  grid-column: 2;
+  min-width: 0;
+  gap: 2px;
+  padding: 4px 2px;
+}
+.collection-card:not(:has(.collection-check)) .collection-open {
+  grid-column: 1 / -1;
+}
+.collection-open strong {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.collection-open span {
+  overflow: hidden;
+  font-size: 10px;
+  line-height: 1.3;
+  -webkit-line-clamp: 1;
+}
+.collection-open small {
+  overflow: hidden;
+  font-size: 8px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.folder-select {
+  grid-column: 3;
+  min-width: 54px;
+  gap: 3px;
+  padding: 2px 1px;
+  font-size: 8px;
+}
+.folder-select select {
+  width: 100%;
+  max-width: 74px;
+  min-height: 25px;
+  padding: 4px 5px;
+  border-radius: 7px;
+  font-size: 9px;
+}
+.collection-card > .secondary-btn {
+  grid-column: 3;
+  min-height: 28px;
+  padding: 5px 7px;
+  border-radius: 8px;
+  font-size: 9px;
+}
+.empty-state {
+  padding: 12vh 12px;
+  font-size: 14px;
+}
+@media (max-width: 430px) {
+  .collection-panel {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .collection-intro .muted {
+    max-width: 52%;
+  }
+  .folder-select {
+    min-width: 48px;
+  }
+  .folder-select > span {
+    display: none;
+  }
+}
