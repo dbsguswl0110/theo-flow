@@ -56,7 +56,8 @@ export default function CalendarView({
   const today = dayKey(new Date());
   const [month, setMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(today);
-  const [scope, setScope] = useState<"date" | "all">("date");
+  // Show all three information columns on entry; choosing a day narrows them together.
+  const [scope, setScope] = useState<"date" | "all">("all");
   const [completing, setCompleting] = useState<string[]>([]);
 
   const calendarItems = useMemo(() => expandCalendarItems(items), [items]);
