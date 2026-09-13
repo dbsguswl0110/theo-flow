@@ -4,7 +4,6 @@ import type { CaptureItem } from "../types";
 import { dayKey } from "../lib/dates";
 
 type CalendarEntry = CaptureItem & { sourceId?: string; isSubtask?: boolean };
-type PanelFilter = "todo" | "task" | "note";
 
 function expandCalendarItems(items: CaptureItem[]): CalendarEntry[] {
   return items.flatMap((item) => {
@@ -57,7 +56,6 @@ export default function CalendarView({
   const today = dayKey(new Date());
   const [month, setMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(today);
-  const [filter, setFilter] = useState<PanelFilter>("todo");
   const [scope, setScope] = useState<"date" | "all">("date");
   const [completing, setCompleting] = useState<string[]>([]);
 
@@ -76,13 +74,26 @@ export default function CalendarView({
     });
   }, [month]);
 
-  const panelItems = useMemo(() => {
-    const source: CalendarEntry[] = filter === "todo" ? todos : filter === "task" ? tasks : notes;
-    return source
-      .filter((item) => scope === "all" || includesDate(item, selectedDate))
-      .filter((item) => !(filter === "todo" && item.completed))
-      .sort((a, b) => `${a.startDate}-${a.title}`.localeCompare(`${b.startDate}-${b.title}`));
-  }, [filter, notes, scope, selectedDate, tasks, todos]);
+  const panelColumns = useMemo(() => [
+    {
+      key: "todo" as const,
+      label: "To Do",
+      items: todos.filter((item) => !(scope === "date" && !includesDate(item, selectedDate)) && !item.completed),
+    },
+    {
+      key: "task" as const,
+      label: "Task",
+      items: tasks.filter((item) => scope === "all" || includesDate(item, selectedDate)),
+    },
+    {
+      key: "note" as const,
+      label: "Note",
+      items: notes.filter((item) => scope === "all" || includesDate(item, selectedDate)),
+    },
+  ].map((column) => ({
+    ...column,
+    items: [...column.items].sort((a, b) => `${a.startDate}-${a.title}`.localeCompare(`${b.startDate}-${b.title}`)),
+  })), [notes, scope, selectedDate, tasks, todos]);
 
   const sourceFor = (entry: CalendarEntry) =>
     entry.sourceId ? items.find((item) => item.id === entry.sourceId) : entry;
@@ -205,36 +216,38 @@ export default function CalendarView({
               {scope === "date" ? "전체 보기" : "선택일 보기"}
             </button>
           </div>
-          <nav className="calendar-information-tabs" aria-label="정보 종류">
-            {(["todo", "task", "note"] as const).map((kind) => (
-              <button type="button" key={kind} className={filter === kind ? "is-active" : ""} onClick={() => setFilter(kind)}>
-                {kind === "todo" ? "To Do" : kind === "task" ? "Task" : "Note"}
-                <span>{kind === "todo" ? todos.filter((item) => !item.completed).length : kind === "task" ? tasks.length : notes.length}</span>
-              </button>
-            ))}
-          </nav>
-          <div className="calendar-information-list">
-            {panelItems.length ? panelItems.map((item) => {
-              const parent = sourceFor(item);
-              const isCompleting = completing.includes(item.id);
-              return (
-                <article key={item.id} className={`calendar-information-card ${item.type} ${item.completed ? "is-completed" : ""} ${isCompleting ? "is-completing" : ""}`}>
-                  {item.type !== "note" && (
-                    <input type="checkbox" checked={item.completed} onChange={(event) => void toggleCompleted(item, event.target.checked)} aria-label={`${item.title} 완료`} />
+          <div className="calendar-information-columns">
+            {panelColumns.map((column) => (
+              <section className={`calendar-information-column ${column.key}`} key={column.key} aria-labelledby={`calendar-column-${column.key}`}>
+                <header>
+                  <h3 id={`calendar-column-${column.key}`}>{column.label}</h3>
+                  <span>{column.items.length}</span>
+                </header>
+                <div className="calendar-information-list">
+                  {column.items.length ? column.items.map((item) => {
+                    const parent = sourceFor(item);
+                    const isCompleting = completing.includes(item.id);
+                    return (
+                      <article key={item.id} className={`calendar-information-card ${item.type} ${item.completed ? "is-completed" : ""} ${isCompleting ? "is-completing" : ""}`}>
+                        {item.type !== "note" && (
+                          <input type="checkbox" checked={item.completed} onChange={(event) => void toggleCompleted(item, event.target.checked)} aria-label={`${item.title} 완료`} />
+                        )}
+                        <button type="button" className="calendar-information-open" onClick={() => parent && onSelect(parent)}>
+                          <strong style={{ fontSize: `${titleSize(item.title)}px` }}>{item.title}</strong>
+                          <span>{item.content || "내용 없음"}</span>
+                          <small>
+                            {item.type === "todo" ? "To Do" : item.type === "task" ? "Task" : "Note"}
+                            {item.startDate ? ` · ${item.startDate}` : ""}{item.dueDate ? ` → ${item.dueDate}` : ""}
+                          </small>
+                        </button>
+                      </article>
+                    );
+                  }) : (
+                    <div className="calendar-information-empty"><span>✦</span><p>{scope === "date" ? "없음" : "아직 없음"}</p><small>{scope === "date" ? "다른 날짜를 선택해보세요." : "항목을 추가해보세요."}</small></div>
                   )}
-                  <button type="button" className="calendar-information-open" onClick={() => parent && onSelect(parent)}>
-                    <strong style={{ fontSize: `${titleSize(item.title)}px` }}>{item.title}</strong>
-                    <span>{item.content || "내용 없음"}</span>
-                    <small>
-                      {item.type === "todo" ? "To Do" : item.type === "task" ? "Task" : "Note"}
-                      {item.startDate ? ` · ${item.startDate}` : ""}{item.dueDate ? ` → ${item.dueDate}` : ""}
-                    </small>
-                  </button>
-                </article>
-              );
-            }) : (
-              <div className="calendar-information-empty"><span>✦</span><p>{scope === "date" ? "선택한 날짜에 표시할 항목이 없어요." : "아직 등록된 항목이 없어요."}</p><small>달력에서 날짜를 선택하거나 전체 보기를 눌러보세요.</small></div>
-            )}
+                </div>
+              </section>
+            ))}
           </div>
         </aside>
       </div>

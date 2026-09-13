@@ -836,7 +836,7 @@
 }
 .calendar-split-layout {
   display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(260px, 2fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: clamp(18px, 3vw, 38px);
   min-height: 0;
   height: calc(100% - 76px);
@@ -990,6 +990,91 @@
   overflow: hidden;
   padding: clamp(16px, 2vw, 26px);
 }
+.calendar-information-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(7px, 1.1vw, 16px);
+  flex: 1;
+  min-height: 0;
+  margin-top: 14px;
+}
+.calendar-information-column {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #eee4da;
+  border-radius: 15px;
+  background: #fffdf9;
+}
+.calendar-information-column > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  padding: 11px 10px 9px;
+  border-bottom: 1px solid #eee4da;
+  background: #fcf5ee;
+}
+.calendar-information-column > header h3 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--calendar-ink);
+  font-size: clamp(11px, 1.3vw, 15px);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-information-column > header span {
+  color: #ad8d79;
+  font-size: 10px;
+  font-weight: 700;
+}
+.calendar-information-column .calendar-information-list {
+  margin-top: 0;
+  padding: 8px;
+}
+.calendar-information-column .calendar-information-card {
+  flex-direction: column;
+  gap: 5px;
+  padding: 9px 8px;
+  border-radius: 11px;
+}
+.calendar-information-column .calendar-information-card > input {
+  position: absolute;
+  margin: 0;
+  width: 16px;
+  height: 16px;
+}
+.calendar-information-column .calendar-information-card:has(> input) .calendar-information-open {
+  padding-left: 22px;
+}
+.calendar-information-column .calendar-information-open span {
+  font-size: 10px;
+  -webkit-line-clamp: 3;
+}
+.calendar-information-column .calendar-information-open small {
+  font-size: 9px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.calendar-information-column .calendar-information-empty {
+  min-height: 120px;
+  padding: 10px 4px;
+}
+.calendar-information-column .calendar-information-empty span {
+  font-size: 17px;
+}
+.calendar-information-column .calendar-information-empty p {
+  margin: 7px 0 2px;
+  font-size: 11px;
+}
+.calendar-information-column .calendar-information-empty small {
+  font-size: 9px;
+  text-align: center;
+}
 .calendar-information-heading {
   display: flex;
   align-items: flex-end;
@@ -1054,6 +1139,7 @@
   padding-right: 3px;
 }
 .calendar-information-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 8px;
@@ -1162,6 +1248,9 @@
   }
   .calendar-information-panel {
     min-height: 420px;
+  }
+  .calendar-information-columns {
+    grid-template-columns: 1fr;
   }
   .calendar-date-cell {
     min-height: 76px;
