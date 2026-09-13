@@ -1334,6 +1334,7 @@
 .calendar-cell-more {
   min-height: 0;
   padding: 0;
+  border: 0;
   border-radius: 0;
   box-shadow: none;
   font-size: clamp(8px, .8vw, 9px);
