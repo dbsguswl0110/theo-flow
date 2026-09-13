@@ -1367,6 +1367,14 @@
 .calendar-information-column .calendar-information-open small {
   font-size: 8px;
 }
+.calendar-information-date-heading {
+  margin: 4px 2px 1px;
+  color: #a07f6b;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: .1px;
+  line-height: 1.2;
+}
 .calendar-information-column > header {
   padding: 8px 7px 7px;
 }

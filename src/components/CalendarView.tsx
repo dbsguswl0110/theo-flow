@@ -38,6 +38,15 @@ function titleSize(title: string) {
   return 10;
 }
 
+function formatDateHeading(date: string) {
+  return new Date(`${date}T00:00:00`).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short",
+  });
+}
+
 export default function CalendarView({
   items,
   onClose,
@@ -147,6 +156,40 @@ export default function CalendarView({
       320,
     );
   }
+
+  const renderColumnItems = (column: (typeof panelColumns)[number]) => {
+    if (!column.items.length) {
+      return <div className="calendar-information-empty"><span>✦</span><p>{scope === "date" ? "없음" : "아직 없음"}</p><small>{scope === "date" ? "다른 날짜를 선택해보세요." : "항목을 추가해보세요."}</small></div>;
+    }
+    const groups = scope === "all"
+      ? [...column.items.reduce((map, item) => {
+          const key = item.startDate || "no-date";
+          const group = map.get(key) || [];
+          group.push(item);
+          map.set(key, group);
+          return map;
+        }, new Map<string, CalendarEntry[]>())].sort(([a], [b]) => a.localeCompare(b))
+      : [["", column.items] as [string, CalendarEntry[]]];
+    return groups.flatMap(([date, groupedItems]) => [
+      date && date !== "no-date" ? <div className="calendar-information-date-heading" key={`date-${column.key}-${date}`}>{formatDateHeading(date)}</div> : null,
+      ...groupedItems.map((item) => {
+        const parent = sourceFor(item);
+        const isCompleting = completing.includes(item.id);
+        return (
+          <article key={item.id} className={`calendar-information-card ${item.type} ${item.completed ? "is-completed" : ""} ${isCompleting ? "is-completing" : ""}`}>
+            {item.type !== "note" && (
+              <input type="checkbox" checked={item.completed} onChange={(event) => void toggleCompleted(item, event.target.checked)} aria-label={`${item.title} 완료`} />
+            )}
+            <button type="button" className="calendar-information-open" onClick={() => parent && onSelect(parent)}>
+              <strong style={{ fontSize: `${titleSize(item.title)}px` }}>{item.title}</strong>
+              <span>{item.content || "내용 없음"}</span>
+              <small>{item.type === "todo" ? "To Do" : item.type === "task" ? "Task" : "Note"}</small>
+            </button>
+          </article>
+        );
+      }),
+    ]);
+  };
 
   const monthLabel = month.toLocaleDateString("en-US", { month: "long", year: "numeric" });
   const selectedLabel = new Date(`${selectedDate}T00:00:00`).toLocaleDateString("en-US", {
@@ -260,24 +303,7 @@ export default function CalendarView({
                   <span>{column.items.length}</span>
                 </header>
                 <div className="calendar-information-list">
-                  {column.items.length ? column.items.map((item) => {
-                    const parent = sourceFor(item);
-                    const isCompleting = completing.includes(item.id);
-                    return (
-                      <article key={item.id} className={`calendar-information-card ${item.type} ${item.completed ? "is-completed" : ""} ${isCompleting ? "is-completing" : ""}`}>
-                        {item.type !== "note" && (
-                          <input type="checkbox" checked={item.completed} onChange={(event) => void toggleCompleted(item, event.target.checked)} aria-label={`${item.title} 완료`} />
-                        )}
-                        <button type="button" className="calendar-information-open" onClick={() => parent && onSelect(parent)}>
-                          <strong style={{ fontSize: `${titleSize(item.title)}px` }}>{item.title}</strong>
-                          <span>{item.content || "내용 없음"}</span>
-                          <small>{item.type === "todo" ? "To Do" : item.type === "task" ? "Task" : "Note"}</small>
-                        </button>
-                      </article>
-                    );
-                  }) : (
-                    <div className="calendar-information-empty"><span>✦</span><p>{scope === "date" ? "없음" : "아직 없음"}</p><small>{scope === "date" ? "다른 날짜를 선택해보세요." : "항목을 추가해보세요."}</small></div>
-                  )}
+                  {renderColumnItems(column)}
                 </div>
               </section>
             ))}
