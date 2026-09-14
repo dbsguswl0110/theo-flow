@@ -45,7 +45,7 @@ The native shell now registers a Galaxy-compatible Android Home Screen widget. I
 
 ## macOS Calendar widget
 
-`macos/TEOFlow` contains a lightweight SwiftUI host app and WidgetKit extension for macOS 14+. The widget uses the same `GET /api/items` endpoint as the Android widget, renders Todo/Task items inside a translucent blurred monthly calendar, and opens TEO when clicked. The checked-in source is intentionally independent of the web UI so the widget remains usable when the main app is closed.
+`macos/TEOFlow` contains a lightweight SwiftUI host app and WidgetKit extension for macOS 14+. The widget uses the same `GET /api/items` endpoint as the Android widget, renders Todo/Task items inside a translucent blurred monthly calendar, and provides NOTE / TASK / TODO / + quick links. The links open the matching TEO page through the `teoflow://` URL scheme; the `+` link opens the note page where a new entry can be created. The checked-in source is intentionally independent of the web UI so the widget remains usable when the main app is closed.
 
 Build the local app bundle with Xcode's macOS SDK (Apple Silicon):
 
