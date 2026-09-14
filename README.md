@@ -57,6 +57,24 @@ xcrun swiftc -parse-as-library -target arm64-apple-macosx14.0 -sdk "$SDK" -frame
 
 The installed bundle is `TEO.app`; after opening it once, add **TEO Calendar** from the macOS widget gallery. The widget refreshes every 15 minutes and reads the latest server data on the next timeline refresh.
 
+## macOS floating calendar panel
+
+`macos/TEOFlow/Panel` contains a separate native `TEO Calendar Panel.app` for keeping the calendar on the desktop. It intentionally does not open the web app or its launch animation: the panel is calendar-only, loads the same Todo/Task data from `/api/items`, and refreshes from the server with the refresh control. Its glass surface uses a light 5% overlay with a native blurred HUD material, has no visible close button, and can be resized from the window edges.
+
+The panel is floating and joins all Spaces. Window movement is deliberately restricted to the dotted grip in the top-right corner; dragging the calendar body never moves the window. The initial panel size is 470×430 points with a 330×280 minimum. Build and install it locally with:
+
+```bash
+SDK=$(xcrun --sdk macosx --show-sdk-path)
+xcrun swiftc -parse-as-library -target arm64-apple-macosx14.0 -sdk "$SDK" \
+  -framework SwiftUI -framework AppKit \
+  macos/TEOFlow/TEOFlowWidget/WidgetModels.swift \
+  macos/TEOFlow/Panel/PanelCalendarView.swift \
+  macos/TEOFlow/Panel/TEOCalendarPanelApp.swift \
+  -o artifacts/macos/build/TEOCalendarPanel
+```
+
+The distributable archive is `artifacts/macos/TEO-Calendar-Panel.zip`. Open the app from `/Applications/TEO Calendar Panel.app`, then leave it running on the desktop as a lightweight calendar panel.
+
 Build locally when Android Studio/SDK and Java 21 are installed:
 
 ```bash
