@@ -43,6 +43,20 @@ The repository includes a Capacitor Android shell under `android/`. The shell lo
 
 The native shell now registers a Galaxy-compatible Android Home Screen widget. Its large/resizable layout shows open Todo/Task items on the left and the current month's calendar on the right; tapping it opens TEO. The widget reads `GET /api/items` directly and does not create a second widget database. It refreshes on the Android widget schedule and displays a small sync status. The app label and launcher artwork are TEO. Because the widget and launcher are native Android changes, this release requires installing the newly built APK once.
 
+## macOS Calendar widget
+
+`macos/TEOFlow` contains a lightweight SwiftUI host app and WidgetKit extension for macOS 14+. The widget uses the same `GET /api/items` endpoint as the Android widget, renders Todo/Task items inside a translucent blurred monthly calendar, and opens TEO when clicked. The checked-in source is intentionally independent of the web UI so the widget remains usable when the main app is closed.
+
+Build the local app bundle with Xcode's macOS SDK (Apple Silicon):
+
+```bash
+SDK=$(xcrun --sdk macosx --show-sdk-path)
+xcrun swiftc -parse-as-library -target arm64-apple-macosx14.0 -sdk "$SDK" -framework SwiftUI -framework WebKit macos/TEOFlow/TEOFlow/TEOFlowApp.swift -o artifacts/macos/build/TEOFlow
+xcrun swiftc -parse-as-library -target arm64-apple-macosx14.0 -sdk "$SDK" -framework SwiftUI -framework WidgetKit macos/TEOFlow/TEOFlowWidget/WidgetModels.swift macos/TEOFlow/TEOFlowWidget/TEOFlowWidget.swift -o artifacts/macos/build/TEOFlowWidget
+```
+
+The installed bundle is `TEO.app`; after opening it once, add **TEO Calendar** from the macOS widget gallery. The widget refreshes every 15 minutes and reads the latest server data on the next timeline refresh.
+
 Build locally when Android Studio/SDK and Java 21 are installed:
 
 ```bash
