@@ -69,6 +69,7 @@ struct CalendarWidgetView: View {
             header
             weekdayRow
             calendarGrid
+            quickLinks
             if family == .systemLarge {
                 agenda
             }
@@ -189,6 +190,38 @@ struct CalendarWidgetView: View {
                 }
             }
         }
+    }
+
+    private var quickLinks: some View {
+        HStack(spacing: family == .systemSmall ? 3 : 5) {
+            quickLink(title: "NOTE", systemName: "note.text", mode: "note")
+            quickLink(title: "TASK", systemName: "checkmark.square", mode: "task")
+            quickLink(title: "TODO", systemName: "list.bullet", mode: "todo")
+            quickLink(title: "＋", systemName: "plus", mode: "new-note")
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func quickLink(title: String, systemName: String, mode: String) -> some View {
+        Link(destination: URL(string: "teoflow://\(mode)")!) {
+            HStack(spacing: 3) {
+                Image(systemName: systemName)
+                    .font(.system(size: family == .systemSmall ? 7 : 8, weight: .semibold))
+                if family != .systemSmall || title == "＋" {
+                    Text(title)
+                        .font(.system(size: family == .systemSmall ? 7 : 8, weight: .bold, design: .rounded))
+                        .tracking(0.4)
+                }
+            }
+            .foregroundStyle(Color(red: 0.39, green: 0.27, blue: 0.21))
+            .frame(maxWidth: .infinity, minHeight: family == .systemSmall ? 18 : 22)
+            .background(Color.white.opacity(0.34), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(Color.white.opacity(0.44), lineWidth: 0.7)
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private var columns: [GridItem] {
