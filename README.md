@@ -55,7 +55,7 @@ xcrun swiftc -parse-as-library -target arm64-apple-macosx14.0 -sdk "$SDK" -frame
 xcrun swiftc -parse-as-library -target arm64-apple-macosx14.0 -sdk "$SDK" -framework SwiftUI -framework WidgetKit macos/TEOFlow/TEOFlowWidget/WidgetModels.swift macos/TEOFlow/TEOFlowWidget/TEOFlowWidget.swift -o artifacts/macos/build/TEOFlowWidget
 ```
 
-The installed bundle is `TEO.app`; after opening it once, add **TEO Calendar** from the macOS widget gallery. The widget refreshes every 15 minutes and reads the latest server data on the next timeline refresh.
+The installed bundle is `TEO.app`; after opening it once, add **TEO Flow Calendar** from the macOS widget gallery. The widget refreshes every 15 minutes and reads the latest server data on the next timeline refresh. The host app is labelled **TEO Flow** so it is discoverable by searching `teo`.
 
 ## macOS floating calendar panel
 

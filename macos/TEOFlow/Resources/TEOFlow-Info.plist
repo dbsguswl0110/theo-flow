@@ -3,25 +3,35 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleDisplayName</key>
-	<string>TEO</string>
+	<string>TEO Flow</string>
 	<key>CFBundleExecutable</key>
 	<string>TEOFlow</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.theo.flow.macos</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<key>CFBundleIconFile</key>
+	<string>teo-pixel-app-icon.png</string>
+	<key>CFBundleIconName</key>
+	<string>teo-pixel-app-icon</string>
 	<key>CFBundleName</key>
 	<string>TEO</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0.0</string>
+	<string>1.0.1</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>MacOSX</string>
+	</array>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.productivity</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
