@@ -1004,6 +1004,9 @@
 .calendar-month-panel {
   padding: 14px;
 }
+.cm-weekdays span:last-child {
+  color: #c4655a;
+}
 .cm-weekdays {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -1025,30 +1028,6 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-template-rows: var(--head, 30px) repeat(var(--lanes, 3), var(--lane, 22px));
   padding-bottom: 6px;
-}
-@media (max-width: 560px) {
-  .cm-week {
-    --head: 26px;
-    --lane: 20px;
-    padding-bottom: 4px;
-  }
-  .cm-bar {
-    height: 18px;
-    line-height: 18px;
-    font-size: 11px;
-    padding: 0 6px;
-  }
-  .cm-bar.is-dot::before {
-    top: 6px;
-  }
-  .cm-num {
-    min-width: 22px;
-    height: 22px;
-    font-size: 12px;
-  }
-  .calendar-month-panel {
-    padding: 10px;
-  }
 }
 .cm-week + .cm-week {
   border-top: 1px solid var(--line);
@@ -1072,9 +1051,9 @@
 .cm-day.is-outside .cm-num {
   color: #bdae9f;
 }
-.cm-day.is-selected {
-  background: var(--tone-soft);
-  box-shadow: inset 0 0 0 2px var(--tone-ring);
+/* The chosen day is marked on its number only: a tinted cell would peek out around the bars. */
+.cm-day.is-selected .cm-num {
+  box-shadow: 0 0 0 2px var(--ink);
 }
 .cm-day:active {
   background: #faf1e8;
@@ -1098,13 +1077,17 @@
 }
 .cm-more {
   grid-row: 1;
-  align-self: center;
+  align-self: start;
   justify-self: end;
-  margin-right: 6px;
+  display: flex;
+  align-items: center;
+  height: 24px;
+  margin: 5px 5px 0 0;
   z-index: 2;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 800;
   color: var(--muted);
+  font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
 .cm-bar {
@@ -1168,6 +1151,36 @@
 .cm-bar.is-completed span {
   text-decoration: line-through;
 }
+/* Phone sizes come after the base rules so they win. */
+@media (max-width: 560px) {
+  .cm-week {
+    --head: 26px;
+    --lane: 20px;
+    padding-bottom: 4px;
+  }
+  .cm-bar {
+    height: 18px;
+    line-height: 18px;
+    font-size: 11px;
+    padding: 0 6px;
+  }
+  .cm-bar.is-dot::before {
+    top: 6px;
+  }
+  .cm-num {
+    min-width: 22px;
+    height: 22px;
+    font-size: 12px;
+  }
+  .cm-more {
+    height: 22px;
+    margin-right: 4px;
+    font-size: 10px;
+  }
+  .calendar-month-panel {
+    padding: 10px;
+  }
+}
 .calendar-legend {
   display: flex;
   flex-wrap: wrap;
@@ -1207,9 +1220,9 @@
 }
 .calendar-kicker {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.02em;
   color: var(--muted);
 }
 .calendar-information-heading h2 {
