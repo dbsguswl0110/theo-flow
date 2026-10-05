@@ -104,7 +104,9 @@ Cloudflare authentication is provided by `wrangler login` or an existing Wrangle
 
 For headless deployment use the `CLOUDFLARE_API_TOKEN` environment variable with Workers, D1 and R2 permissions and, when required, `CLOUDFLARE_ACCOUNT_ID`. Runtime storage is supplied via `DB`, `PHOTOS` and `ASSETS` bindings; no client-side secret or extra environment variable is needed. Apply all remote migrations **before** deploying this revision. Back up production data before schema changes.
 
-When updating the web experience, run `npm run cf:deploy`. The Android app points to that same Worker URL, so no APK rebuild is needed for those web-only updates.
+**Automatic deploys.** `.github/workflows/deploy.yml` deploys every push to `main` (every merged PR) and can also be run by hand from the Actions tab. Add the repository secrets `CLOUDFLARE_API_TOKEN` (permissions: Workers Scripts, D1 and R2 edit) and, only if the token spans several accounts, `CLOUDFLARE_ACCOUNT_ID`, under Settings → Secrets and variables → Actions. Each run type-checks, applies pending D1 migrations with `wrangler d1 migrations apply theo-flow --remote`, builds, deploys, and then requests the live site and `/api/folders` to confirm it answers. Without the token the run only prints a warning and deploys nothing. Because migrations run automatically, review any new file in `migrations/` before merging.
+
+When updating the web experience by hand instead, run `npm run cf:deploy`. The Android app points to that same Worker URL, so no APK rebuild is needed for those web-only updates.
 
 ## Interaction details
 
