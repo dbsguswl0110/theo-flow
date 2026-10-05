@@ -85,11 +85,17 @@ export default function Settings({
       </section>
 
       <section className="tc-card tc-group">
-        <h2>TEO</h2>
-        <p className="tc-note">
-          위 Todo는 프로젝트 역할을 하며 내부에 Task를 추가할 수 있어요. 캘린더 달력에는 Todo와 Task만 그려지고, Note는 옆
-          정보 열에서 볼 수 있어요. Note는 폴더로 분류할 수 있어요.
-        </p>
+        <h2>이렇게 쓰면 돼요</h2>
+        <ul className="tc-tips">
+          <li>
+            <b>Todo</b>는 프로젝트예요. 안에 <b>Task</b>를 하나씩 추가해 쪼개요.
+          </li>
+          <li>캘린더에는 Todo와 Task가 막대로 그려져요.</li>
+          <li>
+            <b>Note</b>는 달력 옆 목록에서 보고, 폴더로 나눌 수 있어요.
+          </li>
+          <li>메모지를 위로 밀면 Todo, 왼쪽은 Note, 오른쪽은 Task가 돼요.</li>
+        </ul>
         <p className="tc-status">
           <i aria-hidden="true" />
           데이터 상태: {sync}

@@ -52,12 +52,14 @@ const short = (date: string) => {
   const [, month, day] = date.split("-");
   return `${Number(month)}/${Number(day)}`;
 };
+// Notes have no deadline, so only Todo and Task cards say "마감 없음".
 const range = (entry: Entry) =>
   entry.dueDate && entry.dueDate !== entry.startDate
     ? `${short(entry.startDate)} → ${short(entry.dueDate)}`
-    : entry.dueDate
+    : entry.dueDate || entry.item.type === "note"
       ? short(entry.startDate)
       : `${short(entry.startDate)} · 마감 없음`;
+const preview = (content: string) => content.replace(/\s*\n+\s*(?:[-*•]\s*)?/g, " · ").trim();
 
 const own = (item: CaptureItem): Entry => ({
   key: item.id,
@@ -287,7 +289,7 @@ export default function Collection({
             </div>
             <button type="button" className="collection-open" onClick={() => onSelect(item)}>
               <strong>{entry.title}</strong>
-              <span className="tc-snippet">{entry.content || "내용 없음"}</span>
+              {entry.content.trim() && <span className="tc-snippet">{preview(entry.content)}</span>}
               <span className="tc-chips">
                 {entry.sub && <span className="tc-chip tc-chip-parent">Todo · {item.title}</span>}
                 <span className="tc-chip">{range(entry)}</span>

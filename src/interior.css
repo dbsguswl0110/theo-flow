@@ -131,6 +131,8 @@
 }
 .tc-title p {
   margin: 2px 0 0;
+  word-break: keep-all;
+  text-wrap: balance;
   font-size: 13px;
   line-height: 1.4;
   color: var(--muted);
@@ -228,10 +230,45 @@
   gap: 8px;
   font-weight: 600;
 }
-.selection-toolbar input {
-  width: 20px;
-  height: 20px;
-  accent-color: #7a5640;
+.selection-toolbar input,
+.tc-lead .collection-check {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  border: 2px solid #d3bfad;
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s var(--teo-spring);
+}
+.selection-toolbar input:active,
+.tc-lead .collection-check:active {
+  transform: scale(0.84);
+}
+.selection-toolbar input:checked,
+.tc-lead .collection-check:checked {
+  border-color: #7a5640;
+  background: #7a5640;
+  animation: teo-check-pop 0.45s var(--teo-spring);
+}
+.selection-toolbar input:checked::after,
+.tc-lead .collection-check:checked::after {
+  content: "";
+  position: absolute;
+  left: 6.5px;
+  top: 2px;
+  width: 5px;
+  height: 11px;
+  border: solid #fff;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
 }
 .selection-toolbar span {
   color: var(--muted);
@@ -413,13 +450,6 @@
   color: #fff;
   animation: teo-check-pop 0.45s var(--teo-spring);
 }
-.tc-lead .collection-check {
-  position: static;
-  margin: 0;
-  width: 24px;
-  height: 24px;
-  accent-color: #7a5640;
-}
 .collection-open {
   display: grid;
   gap: 4px;
@@ -499,14 +529,14 @@
 }
 .folder-select select {
   max-width: 108px;
-  min-height: 36px;
+  min-height: 34px;
   padding: 0 10px;
   border-radius: 999px;
-  border: 1px solid var(--tone-ring);
-  background: var(--tone-soft);
-  color: var(--tone-deep);
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
 }
 .collection-card > .tc-soft-btn {
   min-height: 36px;
@@ -853,12 +883,6 @@
 }
 .tc-switch > i {
   display: none;
-}
-.tc-note {
-  margin: 0 0 6px;
-  font-size: 13.5px;
-  line-height: 1.7;
-  color: var(--muted);
 }
 .tc-status {
   display: flex;
@@ -1351,4 +1375,73 @@
   border-radius: 50%;
   background: var(--tone);
   box-shadow: 0 0 0 4px var(--tone-soft);
+}
+
+/* ───────── Detail: read-only view keeps full contrast ───────── */
+.detail-memo .memo-title:disabled,
+.detail-memo .memo-content:disabled,
+.detail-memo .memo-dates input[type="date"]:disabled {
+  opacity: 1;
+  color: var(--ink-strong);
+  -webkit-text-fill-color: var(--ink-strong);
+}
+.detail-memo .memo-content:disabled::placeholder {
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+.detail-memo .memo-content:disabled:placeholder-shown {
+  min-height: 24px;
+}
+.detail-memo .memo-dates input[type="date"]:disabled {
+  background: rgba(255, 255, 255, 0.6);
+}
+.detail-memo .due-field[data-empty] input[type="date"]:disabled {
+  opacity: 0.4;
+  -webkit-text-fill-color: var(--muted);
+}
+
+.tc-tips {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  word-break: keep-all;
+}
+.tc-tips li {
+  position: relative;
+  padding-left: 18px;
+}
+.tc-tips li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--tone-ring);
+}
+.tc-tips b {
+  color: var(--ink-strong);
+}
+
+/* ───────── Home: clearer Trash / Setting buttons ───────── */
+.utility-bar button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 253, 249, 0.94);
+  box-shadow: 0 3px 10px rgba(118, 87, 65, 0.08);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 700;
+  transition: transform 0.2s var(--teo-spring);
+}
+.utility-bar button:active {
+  transform: scale(0.92);
 }

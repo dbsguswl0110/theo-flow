@@ -51,7 +51,7 @@ export default function MemoFields({
             onChange={(e) => onChange({ ...draft, startDate: e.target.value })}
           />
         </label>
-        <div className="due-field">
+        <div className="due-field" data-empty={draft.dueDate === null || undefined}>
           <div className="due-heading">
             <span>마감일</span>
             <label className="due-toggle">
