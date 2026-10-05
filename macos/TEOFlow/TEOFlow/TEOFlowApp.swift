@@ -21,7 +21,7 @@ struct TEOFlowApp: App {
                 .frame(minWidth: 420, minHeight: 680)
                 .onOpenURL { url in
                     let mode = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                    deepLink = DeepLink(mode: mode == "new-note" ? "note" : mode)
+                    deepLink = DeepLink(mode: mode)
                 }
         }
         .commands {

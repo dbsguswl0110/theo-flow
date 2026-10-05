@@ -7,6 +7,7 @@ import CalendarView from "./components/CalendarView";
 import ItemDetail from "./components/ItemDetail";
 import Collection from "./components/Collection";
 import BurstLayer from "./components/BurstLayer";
+import Settings from "./components/Settings";
 import TeoCompanion from "./components/TeoCompanion";
 import TeoSprite from "./components/TeoSprite";
 import { dayKey } from "./lib/dates";
@@ -44,6 +45,8 @@ export default function App() {
   const [swipeReady, setSwipeReady] = useState(false);
   const swipeReadyRef = useRef(false);
   const [cheerKey, setCheerKey] = useState(0);
+  // Set by the widget "＋" link: the Note list opens with its composer already unfolded.
+  const [pendingCompose, setPendingCompose] = useState<string | null>(null);
   const [landed, setLanded] = useState<Record<string, number>>({});
   const [prefs, setPrefs] = useState(getFeedbackPrefs);
   const [screen, setScreen] = useState("");
@@ -315,8 +318,12 @@ export default function App() {
   }
   useEffect(() => {
     const openFromWidget = (event: Event) => {
-      const mode = (event as CustomEvent<string>).detail;
-      if (!["calendar", "note", "task", "todo"].includes(mode)) return;
+      const link = (event as CustomEvent<string>).detail;
+      if (!["calendar", "note", "task", "todo", "new-note"].includes(link)) return;
+      // Opened from a widget: skip the launch animation and go straight to the destination.
+      setIntro(false);
+      const mode = link === "new-note" ? "note" : link;
+      if (link === "new-note") setPendingCompose("note");
       // The Android shell re-sends the link a few times while the page loads; one visit is enough.
       if (screenRef.current === mode) {
         if (selectedRef.current) window.history.back();
@@ -534,86 +541,33 @@ export default function App() {
               onClose={navigateBack}
               onSelect={selectItem}
               onSave={saveItem}
+              autoCompose={pendingCompose === screen}
+              onAutoComposed={() => setPendingCompose(null)}
               onDeleteForever={deleteForever}
+              onNotify={notify}
               onCreate={(kind, draft) => register(kind as ItemType, draft)}
             />
           )}
           {screen === "settings" && (
-            <motion.section
-              className="panel settings-panel"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <header className="panel-header">
-                <button aria-label="설정 닫기" onClick={navigateBack}>
-                  ←
-                </button>
-                <h1>Setting</h1>
-              </header>
-              <label className="setting-row">
-                화면 배치
-                <select
-                  value={layout}
-                  onChange={(e) => setLayout(e.target.value)}
-                >
-                  <option value="auto">화면에 맞게 자동</option>
-                  <option value="folded">접힌 화면 · 십자형</option>
-                  <option value="expanded">펼친 화면 · 넓은 십자형</option>
-                </select>
-              </label>
-              <label className="setting-row">
-                움직임 줄이기
-                <input
-                  type="checkbox"
-                  checked={quiet}
-                  onChange={(e) => setQuiet(e.target.checked)}
-                />
-              </label>
-              <label className="setting-row">
-                진동 피드백
-                <input
-                  type="checkbox"
-                  checked={prefs.haptics}
-                  onChange={(e) => {
-                    const next = { ...prefs, haptics: e.target.checked };
-                    setPrefs(next);
-                    setFeedbackPrefs(next);
-                    if (next.haptics) feedback.pet();
-                  }}
-                />
-              </label>
-              <label className="setting-row">
-                효과음
-                <input
-                  type="checkbox"
-                  checked={prefs.sound}
-                  onChange={(e) => {
-                    const next = { ...prefs, sound: e.target.checked };
-                    setPrefs(next);
-                    setFeedbackPrefs(next);
-                    if (next.sound) feedback.pet();
-                  }}
-                />
-              </label>
-              <p>데이터 상태: {sync}</p>
-              <p className="muted">
-                위 Todo는 프로젝트 역할을 하며 내부에 Task를 추가할 수 있어요.
-                캘린더 달력에는 Todo와 Task만 그려지고, Note는 옆 정보 열에서
-                볼 수 있어요. Note는 폴더로 분류할 수 있어요.
-              </p>
-              <button
-                className="secondary-btn"
-                onClick={() => {
-                  navigateBack();
-                  setFocused(false);
-                  setIntroRevealed(false);
-                  setIntro(true);
-                }}
-              >
-                시작 애니메이션 다시 보기
-              </button>
-            </motion.section>
+            <Settings
+              layout={layout}
+              onLayout={setLayout}
+              quiet={quiet}
+              onQuiet={setQuiet}
+              prefs={prefs}
+              onPrefs={(next) => {
+                setPrefs(next);
+                setFeedbackPrefs(next);
+              }}
+              sync={sync}
+              onBack={navigateBack}
+              onReplayIntro={() => {
+                navigateBack();
+                setFocused(false);
+                setIntroRevealed(false);
+                setIntro(true);
+              }}
+            />
           )}
           {selected && (
             <ItemDetail

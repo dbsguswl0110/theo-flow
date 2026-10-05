@@ -472,24 +472,19 @@
 }
 
 /* Cards slide in one after another. */
-.collection-card,
 .calendar-information-card,
 .calendar-timeline-row {
   animation: teo-rise 0.38s var(--teo-spring) both;
 }
-.collection-card:nth-child(2),
 .calendar-information-card:nth-child(2) {
   animation-delay: 0.04s;
 }
-.collection-card:nth-child(3),
 .calendar-information-card:nth-child(3) {
   animation-delay: 0.08s;
 }
-.collection-card:nth-child(4),
 .calendar-information-card:nth-child(4) {
   animation-delay: 0.12s;
 }
-.collection-card:nth-child(n + 5),
 .calendar-information-card:nth-child(n + 5) {
   animation-delay: 0.16s;
 }
@@ -504,16 +499,6 @@
   }
 }
 
-/* Empty states get TEO napping. */
-.empty-state {
-  display: grid;
-  justify-items: center;
-  gap: 4px;
-}
-.empty-state .teo-sprite {
-  filter: drop-shadow(0 4px 5px rgba(120, 80, 50, 0.14));
-}
-
 /* ───────── Calm mode: no hopping, no confetti, no staggered entrances ───────── */
 .home-stage.quiet .teo-sprite,
 .home-stage.quiet .theo-art-wrap,
@@ -526,7 +511,6 @@
   .theo-art-wrap,
   .theo-count,
   .toast,
-  .collection-card,
   .calendar-information-card,
   .calendar-timeline-row,
   .theo-button::before {
