@@ -46,10 +46,19 @@ function formatDateHeading(date: string) {
 }
 
 const TYPE_LABEL = { todo: "To Do", task: "Task", note: "Note" } as const;
+const WEEKDAYS = ["월", "화", "수", "목", "금", "토", "일"];
+
+/** "2026-10-05" → "10/5", the same short form the list cards use. */
+const shortDate = (date: string) => {
+  const [, month, day] = date.split("-");
+  return `${Number(month)}/${Number(day)}`;
+};
+const periodLabel = (item: CalendarEntry) =>
+  item.dueDate && item.dueDate !== item.startDate ? ` · ${shortDate(item.startDate)} → ${shortDate(item.dueDate)}` : "";
 const MAX_LANES = 3;
 
 type Bar = { entry: CalendarEntry; col: number; span: number; lane: number; head: boolean; tail: boolean };
-type Week = { days: Date[]; bars: Bar[]; hidden: number[] };
+type Week = { days: Date[]; bars: Bar[]; hidden: number[]; lanes: number };
 
 /** Lays each item across the weeks it covers as one continuous bar; items without a due date become dots. */
 function layoutWeeks(days: Date[], entries: CalendarEntry[]): Week[] {
@@ -86,7 +95,9 @@ function layoutWeeks(days: Date[], entries: CalendarEntry[]): Week[] {
       if (lane >= MAX_LANES) for (let c = seg.col; c < seg.col + seg.span; c++) hidden[c]++;
       else bars.push({ ...seg, lane });
     }
-    weeks.push({ days: weekDays, bars, hidden });
+    // A week is only as tall as the lanes it uses (at least one, so a day stays easy to tap).
+    const lanes = Math.max(1, ...bars.map((bar) => bar.lane + 1));
+    weeks.push({ days: weekDays, bars, hidden, lanes });
   }
   return weeks;
 }
@@ -242,10 +253,10 @@ export default function CalendarView({
             )}
             <button type="button" className="calendar-information-open" onClick={() => parent && onSelect(parent)}>
               <strong>{item.title}</strong>
-              <span>{item.content || "내용 없음"}</span>
+              {item.content.trim() && <span>{item.content}</span>}
               <small>
                 {TYPE_LABEL[item.type]}
-                {item.dueDate && item.dueDate !== item.startDate ? ` · ${item.startDate.slice(5)} → ${item.dueDate.slice(5)}` : ""}
+                {periodLabel(item)}
               </small>
             </button>
           </article>
@@ -254,7 +265,7 @@ export default function CalendarView({
     ]);
   };
 
-  const monthLabel = month.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  const monthLabel = month.toLocaleDateString("ko-KR", { year: "numeric", month: "long" });
   const selectedLabel = new Date(`${selectedDate}T00:00:00`).toLocaleDateString("ko-KR", {
     month: "long",
     day: "numeric",
@@ -301,10 +312,10 @@ export default function CalendarView({
         </div>
         <div className="cal-switch" role="group" aria-label="캘린더 보기 방식">
           <button type="button" className={viewMode === "day" ? "is-active" : ""} onClick={() => setViewMode("day")}>
-            요일별 보기
+            달력
           </button>
           <button type="button" className={viewMode === "timeline" ? "is-active" : ""} onClick={() => setViewMode("timeline")}>
-            리스트 보기
+            리스트
           </button>
         </div>
       </div>
@@ -312,13 +323,13 @@ export default function CalendarView({
       <div className="calendar-split-layout">
         <section className="calendar-month-panel tc-card" aria-label={`${monthLabel} 월간 캘린더`}>
           <div className="cm-weekdays" aria-hidden="true">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => (
+            {WEEKDAYS.map((day) => (
               <span key={day}>{day}</span>
             ))}
           </div>
           <div className="cm-grid">
             {weeks.map((week) => (
-              <div className="cm-week" key={dayKey(week.days[0])} style={{ "--lanes": MAX_LANES } as CSSProperties}>
+              <div className="cm-week" key={dayKey(week.days[0])} style={{ "--lanes": week.lanes } as CSSProperties}>
                 {week.days.map((date, col) => {
                   const key = dayKey(date);
                   return (
@@ -377,7 +388,7 @@ export default function CalendarView({
           <aside className="calendar-information-panel tc-card" aria-label="To Do, Task, Note 정보">
             <div className="calendar-information-heading">
               <div>
-                <span className="calendar-kicker">{scope === "date" ? "SELECTED DAY" : "EVERYTHING"}</span>
+                <span className="calendar-kicker">{scope === "date" ? "선택한 날" : "전체"}</span>
                 <h2>{scope === "date" ? selectedLabel : "전체 목록"}</h2>
               </div>
               <button className="tc-soft-btn" onClick={() => setScope((current) => (current === "date" ? "all" : "date"))}>
@@ -400,7 +411,7 @@ export default function CalendarView({
           <aside className="calendar-timeline-panel tc-card" aria-label="월간 리스트">
             <div className="calendar-information-heading">
               <div>
-                <span className="calendar-kicker">TIMELINE</span>
+                <span className="calendar-kicker">이번 달</span>
                 <h2>{monthLabel}</h2>
               </div>
               <button className="tc-soft-btn" onClick={onOpenNotes}>
@@ -434,7 +445,7 @@ export default function CalendarView({
                             <strong>{item.title}</strong>
                             <small>
                               {TYPE_LABEL[item.type]}
-                              {item.dueDate ? ` · ${item.startDate.slice(5)} → ${item.dueDate.slice(5)}` : ""}
+                              {periodLabel(item)}
                             </small>
                           </button>
                         </article>

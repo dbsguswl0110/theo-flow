@@ -202,3 +202,39 @@ test("the detail screen shows a deadline card and the Todo's Task progress", asy
   await expect(page.locator(".tc-deadline-card")).toContainText("마감까지 4일 남았어요");
   await expect(page.locator(".subtask-editor h2")).toContainText("1/2");
 });
+
+test("the calendar speaks Korean, weeks are only as tall as their bars, and +n sits level with the day number", async ({
+  page,
+}) => {
+  const crowded = ["가", "나", "다", "라"].map((name) => ({
+    ...base,
+    id: `crowd-${name}`,
+    type: "task",
+    title: `${name} 일정`,
+    startDate: dayKey(0),
+    dueDate: dayKey(0),
+  }));
+  await mockApi(page, crowded);
+  await ready(page);
+  await page.locator('[data-target="calendar"] button').click({ force: true });
+  await page.waitForTimeout(700);
+
+  const now = new Date();
+  await expect(page.locator(".tc-title h1")).toHaveText(`${now.getFullYear()}년 ${now.getMonth() + 1}월`);
+  await expect(page.locator(".cm-weekdays")).toHaveText("월화수목금토일");
+
+  const heights = await page.locator(".cm-week").evaluateAll((weeks) => weeks.map((w) => w.getBoundingClientRect().height));
+  expect(Math.max(...heights)).toBeGreaterThan(Math.min(...heights));
+
+  // Three lanes fit, so the fourth item is counted instead of drawn, level with the number.
+  const more = page.locator(".cm-more");
+  await expect(more).toHaveText("+1");
+  const [moreBox, numBox] = await Promise.all([
+    more.boundingBox(),
+    page.locator(".cm-day.is-today .cm-num").boundingBox(),
+  ]);
+  expect(Math.abs(moreBox!.y + moreBox!.height / 2 - (numBox!.y + numBox!.height / 2))).toBeLessThan(2);
+
+  // The chosen day is marked on its number only, not by tinting the whole cell.
+  await expect(page.locator(".cm-day.is-selected .cm-num")).toHaveCSS("box-shadow", /rgb/);
+});

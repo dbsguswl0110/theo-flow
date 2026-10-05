@@ -47,12 +47,13 @@ The native shell now registers a Galaxy-compatible Android Home Screen widget. I
 
 `macos/TEOFlow` contains a lightweight SwiftUI host app and WidgetKit extension for macOS 14+. The widget uses the same `GET /api/items` endpoint as the Android widget, renders Todo/Task items inside a translucent blurred monthly calendar, and provides NOTE / TASK / TODO / + quick links. The links open the matching TEO page through the `teoflow://` URL scheme; the `+` link opens the note page where a new entry can be created. Small widgets only open the calendar (WidgetKit does not support `Link` there), so the quick links appear in medium and large widgets. The host app uses a single window: widget links reuse it, and tapping the same link again navigates again. The checked-in source is intentionally independent of the web UI so the widget remains usable when the main app is closed.
 
-Build the local app bundle with Xcode's macOS SDK (Apple Silicon):
+Source layout under `macos/TEOFlow`: `Shared/` (the `/api/items` client, month and week-lane maths, colours) is compiled into both the widget and the panel; `TEOFlow/` is the host app, `TEOFlowWidget/` the widget, `Panel/` the floating panel. Build the executables with Xcode's macOS SDK (Apple Silicon); the script compiles every `.swift` file in each target's folders, so adding a file needs no other change:
 
 ```bash
-SDK=$(xcrun --sdk macosx --show-sdk-path)
-xcrun swiftc -parse-as-library -target arm64-apple-macosx14.0 -sdk "$SDK" -framework SwiftUI -framework WebKit macos/TEOFlow/TEOFlow/TEOFlowApp.swift -o artifacts/macos/build/TEOFlow
-xcrun swiftc -parse-as-library -target arm64-apple-macosx14.0 -sdk "$SDK" -framework SwiftUI -framework WidgetKit macos/TEOFlow/TEOFlowWidget/WidgetModels.swift macos/TEOFlow/TEOFlowWidget/TEOFlowWidget.swift -o artifacts/macos/build/TEOFlowWidget
+./macos/build.sh host     # artifacts/macos/build/TEOFlow
+./macos/build.sh widget   # artifacts/macos/build/TEOFlowWidget
+./macos/build.sh panel    # artifacts/macos/build/TEOCalendarPanel
+./macos/build.sh          # all three
 ```
 
 The installed bundle is `TEO.app`; after opening it once, add **TEO Flow Calendar** from the macOS widget gallery. The widget refreshes every 15 minutes and reads the latest server data on the next timeline refresh. The host app is labelled **TEO Flow** so it is discoverable by searching `teo`.
@@ -61,19 +62,9 @@ The installed bundle is `TEO.app`; after opening it once, add **TEO Flow Calenda
 
 `macos/TEOFlow/Panel` contains a separate native `TEO Calendar Panel.app` for keeping the calendar on the desktop. It intentionally does not open the web app or its launch animation: the panel is calendar-only and loads the same Todo/Task data from `/api/items`. It reloads every 60 seconds and on the refresh button; the footer shows when it last synced, and when a refresh fails the panel keeps the last data on screen and shows a "연결 확인 필요" notice instead of emptying the calendar (one malformed record never hides the others). Its glass surface uses a light 5% overlay with a native blurred HUD material, has no visible close button, and can be resized from the window edges.
 
-Items are drawn like the web calendar and the Android widget: an item with a due date is one continuous bar per week (To Do orange, Task teal), an item without one is a dot and a title, and completed items stay visible but dimmed and struck through. A day with more items than fit shows "+n". Because the panel has no Dock icon, menu or close button, a menu bar item (calendar icon) provides *패널 보이기 / 숨기기*, *새로고침*, *완료 항목 표시*, *항상 위에 표시*, the last sync time and *종료*. The panel remembers its position and size between launches.
+Items are drawn like the web calendar and the Android widget: an item with a due date is one continuous bar per week (To Do orange, Task teal), an item without one is a dot and a title, and completed items stay visible but dimmed and struck through. A day with more items than fit shows "+n". The code is split by job: `PanelWindow` (the window), `PanelStatusItem` (menu bar), `PanelStore` (loading and sync state), `PanelPreferences` (remembered settings), `PanelCalendarView` (drawing) and `PanelControls` (grip, glass, buttons). Because the panel has no Dock icon, menu or close button, a menu bar item (calendar icon) provides *패널 보이기 / 숨기기*, *새로고침*, *완료 항목 표시*, *항상 위에 표시*, the last sync time and *종료*. The panel remembers its position and size between launches.
 
-The panel is floating and joins all Spaces. Window movement is deliberately restricted to the dotted grip at the end of the header button row; dragging the calendar body or the transparent title bar never moves the window, and the panel stays visible when another app is active. The initial panel size is 470×430 points with a 330×280 minimum. Build and install it locally with:
-
-```bash
-SDK=$(xcrun --sdk macosx --show-sdk-path)
-xcrun swiftc -parse-as-library -target arm64-apple-macosx14.0 -sdk "$SDK" \
-  -framework SwiftUI -framework AppKit \
-  macos/TEOFlow/TEOFlowWidget/WidgetModels.swift \
-  macos/TEOFlow/Panel/PanelCalendarView.swift \
-  macos/TEOFlow/Panel/TEOCalendarPanelApp.swift \
-  -o artifacts/macos/build/TEOCalendarPanel
-```
+The panel is floating and joins all Spaces. Window movement is deliberately restricted to the dotted grip at the end of the header button row; dragging the calendar body or the transparent title bar never moves the window, and the panel stays visible when another app is active. The initial panel size is 470×430 points with a 330×320 minimum. The weeks share the height that is left, so a six-week month never runs off the bottom, and a taller panel fits more bars under each day number. Build the executable with `./macos/build.sh panel`; the app bundle's Info.plist is `macos/TEOFlow/Resources/TEOCalendarPanel-Info.plist`.
 
 The distributable archive is `artifacts/macos/TEO-Calendar-Panel.zip`. Open the app from `/Applications/TEO Calendar Panel.app`, then leave it running on the desktop as a lightweight calendar panel.
 

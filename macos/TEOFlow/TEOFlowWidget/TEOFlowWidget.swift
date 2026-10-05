@@ -3,14 +3,14 @@ import WidgetKit
 
 struct TEOEntry: TimelineEntry {
     let date: Date
-    let items: [WidgetItem]
+    let items: [CalendarItem]
 }
 
 struct TEOProvider: TimelineProvider {
     func placeholder(in context: Context) -> TEOEntry {
         TEOEntry(date: Date(), items: [
-            WidgetItem(id: "demo-1", type: "todo", title: "오늘의 할 일", startDate: Self.key(Date()), dueDate: nil, completed: false),
-            WidgetItem(id: "demo-2", type: "task", title: "작은 Task", startDate: Self.key(Date()), dueDate: nil, completed: false),
+            CalendarItem(id: "demo-1", type: "todo", title: "오늘의 할 일", startDate: CalendarMonth.dayKey(Date()), dueDate: nil, completed: false),
+            CalendarItem(id: "demo-2", type: "task", title: "작은 Task", startDate: CalendarMonth.dayKey(Date()), dueDate: nil, completed: false),
         ])
     }
 
@@ -18,14 +18,14 @@ struct TEOProvider: TimelineProvider {
         if context.isPreview {
             completion(placeholder(in: context))
         } else {
-            Task { completion(TEOEntry(date: Date(), items: await WidgetData.load())) }
+            Task { completion(TEOEntry(date: Date(), items: await TEOAPI.loadItemsOrEmpty())) }
         }
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TEOEntry>) -> Void) {
         Task {
             do {
-                let items = try await WidgetData.fetch()
+                let items = try await TEOAPI.fetchItems()
                 let refresh = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date().addingTimeInterval(900)
                 completion(Timeline(entries: [TEOEntry(date: Date(), items: items)], policy: .after(refresh)))
             } catch {
@@ -34,11 +34,6 @@ struct TEOProvider: TimelineProvider {
                 completion(Timeline(entries: [TEOEntry(date: Date(), items: [])], policy: .after(retry)))
             }
         }
-    }
-
-    private static func key(_ date: Date) -> String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 }
 
@@ -123,7 +118,7 @@ struct CalendarWidgetView: View {
     private var calendarGrid: some View {
         LazyVGrid(columns: columns, spacing: family == .systemSmall ? 2 : 3) {
             // Blank leading/trailing cells are all nil, so identify cells by position, not by value.
-            ForEach(Array(monthDays.enumerated()), id: \.offset) { _, day in
+            ForEach(Array(CalendarMonth.days(of: entry.date).enumerated()), id: \.offset) { _, day in
                 dayCell(day)
             }
         }
@@ -132,9 +127,8 @@ struct CalendarWidgetView: View {
     private func dayCell(_ day: Date?) -> some View {
         let dayItems = entry.items.filter { item in
             guard let day else { return false }
-            let start = item.startDate
-            let end = item.dueDate ?? start
-            return start <= Self.key(day) && Self.key(day) <= end
+            let key = CalendarMonth.dayKey(day)
+            return item.startDate <= key && key <= item.endDate
         }
         let isToday = day.map { calendar.isDate($0, inSameDayAs: entry.date) } ?? false
         return VStack(alignment: .leading, spacing: 2) {
@@ -236,22 +230,7 @@ struct CalendarWidgetView: View {
         Array(repeating: GridItem(.flexible(), spacing: family == .systemSmall ? 2 : 3), count: 7)
     }
 
-    private var monthDays: [Date?] {
-        let start = calendar.date(from: calendar.dateComponents([.year, .month], from: entry.date)) ?? entry.date
-        let weekday = (calendar.component(.weekday, from: start) + 5) % 7
-        let count = calendar.range(of: .day, in: .month, for: start)?.count ?? 30
-        var result = Array<Date?>(repeating: nil, count: weekday)
-        result += (1...count).compactMap { calendar.date(byAdding: .day, value: $0 - 1, to: start) }
-        while result.count % 7 != 0 { result.append(nil) }
-        return result
-    }
-
-    private func color(for item: WidgetItem) -> Color {
-        item.isTask ? Color(red: 0.36, green: 0.52, blue: 0.52) : Color(red: 0.78, green: 0.42, blue: 0.25)
-    }
-
-    private static func key(_ date: Date) -> String {
-        let parts = Calendar.current.dateComponents([.year, .month, .day], from: date)
-        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    private func color(for item: CalendarItem) -> Color {
+        TEOPalette.color(for: item)
     }
 }
