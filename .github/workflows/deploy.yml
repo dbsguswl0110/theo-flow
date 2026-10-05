@@ -41,11 +41,12 @@ jobs:
         if: steps.creds.outputs.ready == 'true'
         uses: actions/checkout@v4
 
+      # Wrangler 4 refuses to run on anything older than Node 22.
       - name: Set up Node.js
         if: steps.creds.outputs.ready == 'true'
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: npm
 
       - name: Install dependencies
