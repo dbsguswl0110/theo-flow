@@ -8,6 +8,7 @@ import ItemDetail from "./components/ItemDetail";
 import Collection from "./components/Collection";
 import {
   createItemRemote,
+  deleteItemRemote,
   loadItems,
   loadItemsRemote,
   saveItems,
@@ -33,7 +34,14 @@ export default function App() {
     { screen: "", selectedId: null },
   ]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Mirrors the committed route so repeated widget deep links do not stack duplicate history entries.
+  const screenRef = useRef(screen);
+  const selectedRef = useRef<string | null>(selectedId);
+  screenRef.current = screen;
+  selectedRef.current = selectedId;
   function navigate(nextScreen: string) {
+    screenRef.current = nextScreen;
+    selectedRef.current = null;
     routeStack.current.push({ screen: nextScreen, selectedId: null });
     window.history.pushState({ theoRoute: nextScreen, selectedId: null }, "", window.location.href);
     setSelectedId(null);
@@ -236,6 +244,26 @@ export default function App() {
       pending.current--;
     }
   }
+  async function deleteForever(ids: string[]): Promise<string[]> {
+    pending.current++;
+    revision.current++;
+    try {
+      const outcomes = await Promise.all(
+        ids.map(async (id) => ({ id, ok: await deleteItemRemote(id) })),
+      );
+      const removed = outcomes.filter((o) => o.ok).map((o) => o.id);
+      if (removed.length)
+        setItems((prev) => prev.filter((i) => !removed.includes(i.id)));
+      notify(
+        removed.length === ids.length
+          ? `${removed.length}개를 영구 삭제했어요.`
+          : "일부 항목을 삭제하지 못했어요. 연결을 확인해주세요.",
+      );
+      return removed;
+    } finally {
+      pending.current--;
+    }
+  }
   function openCalendar() {
     const a = stage.current?.getBoundingClientRect(),
       b = stage.current
@@ -248,8 +276,14 @@ export default function App() {
   useEffect(() => {
     const openFromWidget = (event: Event) => {
       const mode = (event as CustomEvent<string>).detail;
+      if (!["calendar", "note", "task", "todo"].includes(mode)) return;
+      // The Android shell re-sends the link a few times while the page loads; one visit is enough.
+      if (screenRef.current === mode) {
+        if (selectedRef.current) window.history.back();
+        return;
+      }
       if (mode === "calendar") openCalendar();
-      else if (["note", "task", "todo"].includes(mode)) openCollection(mode);
+      else openCollection(mode);
     };
     window.addEventListener("theo-widget-open", openFromWidget);
     return () => window.removeEventListener("theo-widget-open", openFromWidget);
@@ -361,6 +395,7 @@ export default function App() {
               onClose={navigateBack}
               onSelect={selectItem}
               onSave={saveItem}
+              onDeleteForever={deleteForever}
               onCreate={(kind, draft) => register(kind as ItemType, draft)}
             />
           )}

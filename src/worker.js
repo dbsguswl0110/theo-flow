@@ -38,46 +38,40 @@ export default {
       if (url.pathname === "/api/items" && request.method === "GET") {
         // Keep the trash recoverable for three days, then remove its records and R2 photos.
         const expiry = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
-        const expired = (await env.DB.prepare(
-          "SELECT id FROM items WHERE deleted_at IS NOT NULL AND deleted_at <= ?",
-        ).bind(expiry).all()).results;
-        for (const old of expired) {
-          const photos = (await env.DB.prepare("SELECT object_key FROM photos WHERE item_id=?").bind(old.id).all()).results;
-          await Promise.all(photos.map((p) => env.PHOTOS.delete(p.object_key)));
+        // Every query counts toward the Worker's per-request D1 limit, so purge and read in bulk, not per item.
+        const expiredWhere = "deleted_at IS NOT NULL AND deleted_at <= ?";
+        const hasExpired = await env.DB.prepare(
+          `SELECT 1 AS found FROM items WHERE ${expiredWhere} LIMIT 1`,
+        ).bind(expiry).first();
+        if (hasExpired) {
+          const keys = (await env.DB.prepare(
+            `SELECT object_key FROM photos WHERE item_id IN (SELECT id FROM items WHERE ${expiredWhere})`,
+          ).bind(expiry).all()).results;
+          await Promise.all(keys.map((p) => env.PHOTOS.delete(p.object_key)));
           await env.DB.batch([
-            env.DB.prepare("DELETE FROM photos WHERE item_id=?").bind(old.id),
-            env.DB.prepare("DELETE FROM sub_todos WHERE project_id=?").bind(old.id),
-            env.DB.prepare("DELETE FROM items WHERE id=?").bind(old.id),
+            env.DB.prepare(`DELETE FROM photos WHERE item_id IN (SELECT id FROM items WHERE ${expiredWhere})`).bind(expiry),
+            env.DB.prepare(`DELETE FROM sub_todos WHERE project_id IN (SELECT id FROM items WHERE ${expiredWhere})`).bind(expiry),
+            env.DB.prepare(`DELETE FROM items WHERE ${expiredWhere}`).bind(expiry),
           ]);
         }
-        const { results } = await env.DB.prepare(
-          "SELECT * FROM items ORDER BY created_at DESC",
-        ).all();
-        const items = await Promise.all(
-          results.map(async (i) => {
-            const subs =
-              i.type === "todo"
-                ? (
-                    await env.DB.prepare(
-                      "SELECT * FROM sub_todos WHERE project_id=? ORDER BY sort_order",
-                    )
-                      .bind(i.id)
-                      .all()
-                  ).results
-                : [];
-            const photos =
-              i.type === "note"
-                ? (
-                    await env.DB.prepare(
-                      "SELECT id,file_name,content_type FROM photos WHERE item_id=? ORDER BY created_at",
-                    )
-                      .bind(i.id)
-                      .all()
-                  ).results
-                : [];
-            return { ...row(i), subTodos: subs.map(row), photos };
-          }),
-        );
+        const [itemRows, subRows, photoRows] = await env.DB.batch([
+          env.DB.prepare("SELECT * FROM items ORDER BY created_at DESC"),
+          env.DB.prepare("SELECT * FROM sub_todos ORDER BY sort_order"),
+          env.DB.prepare(
+            "SELECT id,item_id,file_name,content_type FROM photos ORDER BY created_at",
+          ),
+        ]);
+        const subsByProject = new Map();
+        for (const s of subRows.results)
+          subsByProject.set(s.project_id, [...(subsByProject.get(s.project_id) || []), s]);
+        const photosByItem = new Map();
+        for (const { item_id, ...photo } of photoRows.results)
+          photosByItem.set(item_id, [...(photosByItem.get(item_id) || []), photo]);
+        const items = itemRows.results.map((i) => ({
+          ...row(i),
+          subTodos: i.type === "todo" ? (subsByProject.get(i.id) || []).map(row) : [],
+          photos: i.type === "note" ? photosByItem.get(i.id) || [] : [],
+        }));
         return json(items);
       }
       if (url.pathname === "/api/items" && request.method === "POST") {

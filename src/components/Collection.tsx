@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useState, type FormEvent } from "react";
+import { createPortal } from "react-dom";
 import type { CaptureItem, DraftItem, ItemType } from "../types";
-import { deleteItemRemote } from "../lib/storage";
 import { emptyDraft } from "../lib/dates";
 import MemoFields from "./MemoFields";
 export default function Collection({
@@ -13,6 +13,7 @@ export default function Collection({
   folders,
   onAddFolder,
   onCreate,
+  onDeleteForever,
 }: {
   kind: string;
   items: CaptureItem[];
@@ -22,7 +23,9 @@ export default function Collection({
   folders: string[];
   onAddFolder: (name: string) => Promise<boolean>;
   onCreate: (kind: ItemType, draft: DraftItem) => Promise<boolean>;
+  onDeleteForever: (ids: string[]) => Promise<string[]>;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [busy, setBusy] = useState(false),
     [folder, setFolder] = useState("*"),
     [adding, setAdding] = useState(false),
@@ -80,11 +83,11 @@ export default function Collection({
     if (!selected.length || busy) return;
     setBusy(true);
     try {
-      for (const id of selected) await deleteItemRemote(id);
-      setSelected([]);
-      window.location.reload();
+      const removed = await onDeleteForever(selected);
+      setSelected((prev) => prev.filter((id) => !removed.includes(id)));
     } finally {
       setBusy(false);
+      setConfirmingDelete(false);
     }
   }
   async function createFromPanel(e: FormEvent) {
@@ -141,7 +144,7 @@ export default function Collection({
         <div className="selection-toolbar">
           <label><input type="checkbox" checked={selected.length === selectable.length} onChange={(e) => setSelected(e.target.checked ? selectable.map(i => i.id) : [])} /> 전체선택</label>
           <span>{selected.length}개 선택</span>
-          {kind === "trash" ? <button className="danger-btn" disabled={!selected.length || busy} onClick={() => void permanentlyDeleteSelected()}>영구삭제</button> : <button className="secondary-btn" disabled={!selected.length || busy} onClick={() => void moveSelectedToTrash()}>휴지통으로</button>}
+          {kind === "trash" ? <button className="danger-btn" disabled={!selected.length || busy} onClick={() => setConfirmingDelete(true)}>영구삭제</button> : <button className="secondary-btn" disabled={!selected.length || busy} onClick={() => void moveSelectedToTrash()}>휴지통으로</button>}
         </div>
       )}
       {kind === "note" && (
@@ -276,6 +279,39 @@ export default function Collection({
           </article>
         ))}
       </div>
+      {confirmingDelete &&
+        createPortal(
+          <div className="confirm-backdrop">
+            <div
+              className="confirm-dialog"
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="confirm-delete-title"
+            >
+              <strong id="confirm-delete-title">
+                {selected.length}개를 영구 삭제할까요?
+              </strong>
+              <p>되돌릴 수 없어요.</p>
+              <div className="confirm-actions">
+                <button
+                  className="secondary-btn"
+                  disabled={busy}
+                  onClick={() => setConfirmingDelete(false)}
+                >
+                  취소
+                </button>
+                <button
+                  className="danger-solid-btn"
+                  disabled={busy}
+                  onClick={() => void permanentlyDeleteSelected()}
+                >
+                  {busy ? "삭제 중…" : "영구 삭제"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </motion.section>
   );
 }

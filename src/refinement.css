@@ -1700,3 +1700,50 @@
     display: none;
   }
 }
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(62, 44, 34, 0.28);
+}
+.confirm-dialog {
+  width: min(320px, 100%);
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border-radius: 18px;
+  background: #fffdf9;
+  color: #5f4437;
+  box-shadow: 0 16px 36px rgba(40, 25, 15, 0.3);
+}
+.confirm-dialog strong {
+  font-size: 15px;
+  line-height: 1.35;
+  color: #3e2c22;
+}
+.confirm-dialog p {
+  margin: 0;
+  font-size: 13px;
+  color: #7d6555;
+}
+.confirm-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.confirm-actions button {
+  flex: 1;
+  min-height: 38px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.danger-solid-btn {
+  border: 0;
+  background: #a63a28;
+  color: #fff;
+}
