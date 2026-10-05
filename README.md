@@ -33,7 +33,7 @@ Cloudflare D1 stores one `items` source of truth for Notes, Tasks, and Project T
 
 The browser caches the last synced records in localStorage and refreshes from the API on focus and every 15 seconds. New or edited records are confirmed only after the server accepts them. A failed swipe keeps its draft and displays a retry message; this is not an offline mutation queue. A revision guard prevents an in-flight refresh from overwriting a local save.
 
-`0002_trash.sql` adds a nullable deletion timestamp. Trash is reversible; it does not delete photos or subtasks. Project updates and subtask replacement use a D1 batch transaction. Notes support R2 photo uploads up to 10 MB and animated photo removal.
+`0002_trash.sql` adds a nullable deletion timestamp. Trash is reversible; it does not delete photos or subtasks. "영구삭제" asks for confirmation, then removes the selected items (and their photos) and updates the list in place without reloading the app; trash older than three days is purged on the next `GET /api/items`. That endpoint reads items, subtasks and photos in a single D1 batch, so its query count does not grow with the number of items. Project updates and subtask replacement use a D1 batch transaction. Notes support R2 photo uploads up to 10 MB and animated photo removal.
 
 **Access boundary:** this V1 uses one shared workspace, with no login or per-user access control. Anyone able to access its URL/API can read or modify that workspace. Do not store sensitive personal or business information until authentication is added.
 
@@ -45,7 +45,7 @@ The native shell now registers a Galaxy-compatible Android Home Screen widget. I
 
 ## macOS Calendar widget
 
-`macos/TEOFlow` contains a lightweight SwiftUI host app and WidgetKit extension for macOS 14+. The widget uses the same `GET /api/items` endpoint as the Android widget, renders Todo/Task items inside a translucent blurred monthly calendar, and provides NOTE / TASK / TODO / + quick links. The links open the matching TEO page through the `teoflow://` URL scheme; the `+` link opens the note page where a new entry can be created. The checked-in source is intentionally independent of the web UI so the widget remains usable when the main app is closed.
+`macos/TEOFlow` contains a lightweight SwiftUI host app and WidgetKit extension for macOS 14+. The widget uses the same `GET /api/items` endpoint as the Android widget, renders Todo/Task items inside a translucent blurred monthly calendar, and provides NOTE / TASK / TODO / + quick links. The links open the matching TEO page through the `teoflow://` URL scheme; the `+` link opens the note page where a new entry can be created. Small widgets only open the calendar (WidgetKit does not support `Link` there), so the quick links appear in medium and large widgets. The host app uses a single window: widget links reuse it, and tapping the same link again navigates again. The checked-in source is intentionally independent of the web UI so the widget remains usable when the main app is closed.
 
 Build the local app bundle with Xcode's macOS SDK (Apple Silicon):
 
@@ -59,9 +59,9 @@ The installed bundle is `TEO.app`; after opening it once, add **TEO Flow Calenda
 
 ## macOS floating calendar panel
 
-`macos/TEOFlow/Panel` contains a separate native `TEO Calendar Panel.app` for keeping the calendar on the desktop. It intentionally does not open the web app or its launch animation: the panel is calendar-only, loads the same Todo/Task data from `/api/items`, and refreshes from the server with the refresh control. Its glass surface uses a light 5% overlay with a native blurred HUD material, has no visible close button, and can be resized from the window edges.
+`macos/TEOFlow/Panel` contains a separate native `TEO Calendar Panel.app` for keeping the calendar on the desktop. It intentionally does not open the web app or its launch animation: the panel is calendar-only, loads the same Todo/Task data from `/api/items`, and refreshes from the server with the refresh control. When a refresh fails, the panel keeps the last data on screen and shows a "연결 확인 필요" notice instead of emptying the calendar; one malformed record never hides the others. Its glass surface uses a light 5% overlay with a native blurred HUD material, has no visible close button, and can be resized from the window edges.
 
-The panel is floating and joins all Spaces. Window movement is deliberately restricted to the dotted grip in the top-right corner; dragging the calendar body never moves the window. The initial panel size is 470×430 points with a 330×280 minimum. Build and install it locally with:
+The panel is floating and joins all Spaces. Window movement is deliberately restricted to the dotted grip at the end of the header button row; dragging the calendar body or the transparent title bar never moves the window, and the panel stays visible when another app is active. The initial panel size is 470×430 points with a 330×280 minimum. Build and install it locally with:
 
 ```bash
 SDK=$(xcrun --sdk macosx --show-sdk-path)
@@ -117,7 +117,7 @@ When updating the web experience, run `npm run cf:deploy`. The Android app point
 
 The Memo Pad uses a 65px directional swipe threshold and spring-back for incomplete gestures. Completed swipes fly in the chosen direction without needing to hit an icon, then scale down, fade out, show a registration toast, and regenerate a blank Memo Pad. Focus mode keeps the Memo Pad crisp while applying a light `rgba(0,0,0,.03)` tint and a 7px backdrop blur behind it. Deadline bars interpolate continuously from green through yellow and orange to red at the defined 0/30/50/70% thresholds.
 
-Drag the memo handle or paper margin; text fields retain text selection and scrolling. Arrow keys on the handle are accessible save actions. Visible arrow/category buttons have been removed from the memo. Tapping its paper or handle focuses the title. Saving never navigates into a collection. Calendar opens on tap and shows Todo and Task (including child Tasks) together, never Notes. Its bottom Todo/Task switches open the matching collections, and closing the collection returns to Calendar. It draws continuous start-to-due bars across each week. Detail and creation reuse the same MemoFields form, including a NONE/DUE toggle and a date field that is disabled when NONE is selected.
+Drag the memo handle or paper margin; text fields retain text selection and scrolling. Arrow keys on the handle are accessible save actions. Visible arrow/category buttons have been removed from the memo. Tapping its paper or handle focuses the title. Saving never navigates into a collection. Calendar opens on tap. The month grid shows Todo and Task (including child Tasks) and never draws Notes; Notes appear next to them in the Information columns (To Do / Task / Note, all items by default, narrowed by choosing a day) and in the list view. The back arrow returns home. Opening a collection from a widget link is idempotent: the Android shell may re-send the link while the page loads, and it adds only one history entry. Detail and creation reuse the same MemoFields form, including a NONE/DUE toggle and a date field that is disabled when NONE is selected.
 
 Positioning wrappers own the centering transform; only their children own animation transforms. This separation fixes the former off-screen memo and icon drift.
 

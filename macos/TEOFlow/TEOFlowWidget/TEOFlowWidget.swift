@@ -24,9 +24,15 @@ struct TEOProvider: TimelineProvider {
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<TEOEntry>) -> Void) {
         Task {
-            let items = await WidgetData.load()
-            let refresh = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date().addingTimeInterval(900)
-            completion(Timeline(entries: [TEOEntry(date: Date(), items: items)], policy: .after(refresh)))
+            do {
+                let items = try await WidgetData.fetch()
+                let refresh = Calendar.current.date(byAdding: .minute, value: 15, to: Date()) ?? Date().addingTimeInterval(900)
+                completion(Timeline(entries: [TEOEntry(date: Date(), items: items)], policy: .after(refresh)))
+            } catch {
+                // Retry soon instead of leaving an empty calendar for the full 15 minutes.
+                let retry = Calendar.current.date(byAdding: .minute, value: 3, to: Date()) ?? Date().addingTimeInterval(180)
+                completion(Timeline(entries: [TEOEntry(date: Date(), items: [])], policy: .after(retry)))
+            }
         }
     }
 
@@ -69,7 +75,10 @@ struct CalendarWidgetView: View {
             header
             weekdayRow
             calendarGrid
-            quickLinks
+            // WidgetKit only supports Link in medium and large widgets; small ones just open the calendar.
+            if family != .systemSmall {
+                quickLinks
+            }
             if family == .systemLarge {
                 agenda
             }
@@ -113,7 +122,8 @@ struct CalendarWidgetView: View {
 
     private var calendarGrid: some View {
         LazyVGrid(columns: columns, spacing: family == .systemSmall ? 2 : 3) {
-            ForEach(monthDays, id: \.self) { day in
+            // Blank leading/trailing cells are all nil, so identify cells by position, not by value.
+            ForEach(Array(monthDays.enumerated()), id: \.offset) { _, day in
                 dayCell(day)
             }
         }
@@ -193,7 +203,7 @@ struct CalendarWidgetView: View {
     }
 
     private var quickLinks: some View {
-        HStack(spacing: family == .systemSmall ? 3 : 5) {
+        HStack(spacing: 5) {
             quickLink(title: "NOTE", systemName: "note.text", mode: "note")
             quickLink(title: "TASK", systemName: "checkmark.square", mode: "task")
             quickLink(title: "TODO", systemName: "list.bullet", mode: "todo")
@@ -206,15 +216,13 @@ struct CalendarWidgetView: View {
         Link(destination: URL(string: "teoflow://\(mode)")!) {
             HStack(spacing: 3) {
                 Image(systemName: systemName)
-                    .font(.system(size: family == .systemSmall ? 7 : 8, weight: .semibold))
-                if family != .systemSmall || title == "＋" {
-                    Text(title)
-                        .font(.system(size: family == .systemSmall ? 7 : 8, weight: .bold, design: .rounded))
-                        .tracking(0.4)
-                }
+                    .font(.system(size: 8, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .tracking(0.4)
             }
             .foregroundStyle(Color(red: 0.39, green: 0.27, blue: 0.21))
-            .frame(maxWidth: .infinity, minHeight: family == .systemSmall ? 18 : 22)
+            .frame(maxWidth: .infinity, minHeight: 22)
             .background(Color.white.opacity(0.34), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)

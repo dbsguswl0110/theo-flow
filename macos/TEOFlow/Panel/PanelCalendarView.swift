@@ -5,6 +5,8 @@ struct PanelCalendarView: View {
     @State private var month = Date()
     @State private var items: [WidgetItem] = []
     @State private var isLoading = false
+    @State private var syncFailed = false
+    @State private var lastSynced: Date?
 
     private let calendar = Calendar.current
 
@@ -18,6 +20,12 @@ struct PanelCalendarView: View {
             }
             .padding(compact ? 14 : 20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .overlay(alignment: .bottom) {
+                if syncFailed {
+                    syncBanner(compact: compact)
+                        .padding(.bottom, compact ? 8 : 12)
+                }
+            }
             .background(PanelVisualEffect())
             .background(Color.white.opacity(0.05))
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
@@ -35,6 +43,8 @@ struct PanelCalendarView: View {
             Text(month, format: .dateTime.month(.wide).year())
                 .font(.system(size: compact ? 18 : 23, weight: .bold, design: .rounded))
                 .foregroundStyle(Color(red: 0.29, green: 0.20, blue: 0.15))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Spacer(minLength: 5)
             Button("오늘") {
                 month = Date()
@@ -55,7 +65,24 @@ struct PanelCalendarView: View {
                     .rotationEffect(.degrees(isLoading ? 180 : 0))
             }
             .buttonStyle(PanelIconButtonStyle(compact: compact))
+            // The grip is part of this row, so it never covers the buttons.
+            MoveHandle()
+                .frame(width: compact ? 20 : 24, height: compact ? 22 : 26)
         }
+    }
+
+    private func syncBanner(compact: Bool) -> some View {
+        Text(syncMessage)
+            .font(.system(size: compact ? 9 : 10, weight: .semibold, design: .rounded))
+            .foregroundStyle(Color(red: 0.29, green: 0.20, blue: 0.15))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(Color(red: 0.95, green: 0.87, blue: 0.72), in: Capsule())
+    }
+
+    private var syncMessage: String {
+        guard let lastSynced else { return "연결 확인 필요 · 아직 불러오지 못했어요" }
+        return "연결 확인 필요 · \(lastSynced.formatted(date: .omitted, time: .shortened)) 기준 데이터예요"
     }
 
     private func weekdayRow(compact: Bool) -> some View {
@@ -71,7 +98,8 @@ struct PanelCalendarView: View {
 
     private func calendarGrid(compact: Bool) -> some View {
         LazyVGrid(columns: columns(spacing: compact ? 3 : 5), spacing: compact ? 3 : 5) {
-            ForEach(monthDays, id: \.self) { day in
+            // Blank leading/trailing cells are all nil, so identify cells by position, not by value.
+            ForEach(Array(monthDays.enumerated()), id: \.offset) { _, day in
                 cell(day, compact: compact)
             }
         }
@@ -136,8 +164,15 @@ struct PanelCalendarView: View {
     private func refresh() async {
         guard !isLoading else { return }
         isLoading = true
-        items = await WidgetData.load()
-        isLoading = false
+        defer { isLoading = false }
+        do {
+            items = try await WidgetData.fetch()
+            lastSynced = Date()
+            syncFailed = false
+        } catch {
+            // Keep whatever is already on screen and only flag the failure.
+            syncFailed = true
+        }
     }
 
     private static func key(_ date: Date) -> String {

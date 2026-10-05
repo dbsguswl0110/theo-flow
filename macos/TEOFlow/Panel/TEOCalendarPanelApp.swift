@@ -27,7 +27,12 @@ final class PanelAppDelegate: NSObject, NSApplicationDelegate {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
+        // Only the grip moves the window: the transparent title bar must not drag it either.
+        panel.isMovable = false
         panel.isMovableByWindowBackground = false
+        // NSPanel hides itself when its app deactivates unless told otherwise; this one stays on the desktop.
+        panel.hidesOnDeactivate = false
+        panel.isFloatingPanel = true
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         panel.minSize = NSSize(width: 330, height: 280)
@@ -46,13 +51,8 @@ final class PanelAppDelegate: NSObject, NSApplicationDelegate {
 
 struct PanelRootView: View {
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            PanelCalendarView()
-            MoveHandle()
-                .frame(width: 28, height: 28)
-                .padding(9)
-                .contentShape(Rectangle())
-        }
+        // The grip lives in the calendar header (PanelCalendarView), next to the buttons.
+        PanelCalendarView()
     }
 }
 
@@ -65,8 +65,10 @@ struct MoveHandle: NSViewRepresentable {
 }
 
 final class HandleView: NSView {
-    private var startPoint: NSPoint = .zero
+    private var startMouse: NSPoint = .zero
     private var startOrigin: NSPoint = .zero
+
+    override var mouseDownCanMoveWindow: Bool { false }
 
     override func draw(_ dirtyRect: NSRect) {
         // Keep the grip visible against both light and dark desktop backgrounds.
@@ -90,15 +92,16 @@ final class HandleView: NSView {
     }
 
     override func mouseDown(with event: NSEvent) {
-        startPoint = event.locationInWindow
+        startMouse = NSEvent.mouseLocation
         startOrigin = window?.frame.origin ?? .zero
         NSCursor.closedHand.push()
     }
 
     override func mouseDragged(with event: NSEvent) {
         guard let window else { return }
-        let current = event.locationInWindow
-        window.setFrameOrigin(NSPoint(x: startOrigin.x + current.x - startPoint.x, y: startOrigin.y + current.y - startPoint.y))
+        // Screen coordinates: window-relative ones shift as the window follows the pointer, which made the old drag jitter.
+        let mouse = NSEvent.mouseLocation
+        window.setFrameOrigin(NSPoint(x: startOrigin.x + mouse.x - startMouse.x, y: startOrigin.y + mouse.y - startMouse.y))
     }
 
     override func mouseUp(with event: NSEvent) {

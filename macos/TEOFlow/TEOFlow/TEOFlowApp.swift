@@ -1,20 +1,27 @@
 import SwiftUI
 import WebKit
 
+/// One widget tap. The id makes repeated taps on the same link distinct events.
+struct DeepLink: Equatable {
+    let id = UUID()
+    let mode: String
+}
+
 @main
 struct TEOFlowApp: App {
-    @State private var deepLinkMode: String?
+    @State private var deepLink: DeepLink?
 
     var body: some Scene {
-        WindowGroup {
+        // A single window: widget links reuse it instead of opening another copy of the app.
+        Window("TEO Flow", id: "main") {
             WebContainer(
                 url: URL(string: "https://theo-flow.dbsguswl0110.workers.dev/")!,
-                deepLinkMode: deepLinkMode
+                deepLink: deepLink
             )
                 .frame(minWidth: 420, minHeight: 680)
                 .onOpenURL { url in
                     let mode = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                    deepLinkMode = mode == "new-note" ? "note" : mode
+                    deepLink = DeepLink(mode: mode == "new-note" ? "note" : mode)
                 }
         }
         .commands {
@@ -25,7 +32,7 @@ struct TEOFlowApp: App {
 
 struct WebContainer: NSViewRepresentable {
     let url: URL
-    let deepLinkMode: String?
+    let deepLink: DeepLink?
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -45,9 +52,10 @@ struct WebContainer: NSViewRepresentable {
 
     func updateNSView(_ view: WKWebView, context: Context) {
         context.coordinator.webView = view
-        if let deepLinkMode, !deepLinkMode.isEmpty, context.coordinator.lastMode != deepLinkMode {
-            context.coordinator.lastMode = deepLinkMode
-            context.coordinator.pendingMode = deepLinkMode
+        // Compare link ids, not modes: tapping the same widget link twice must navigate twice.
+        if let deepLink, !deepLink.mode.isEmpty, context.coordinator.lastLinkID != deepLink.id {
+            context.coordinator.lastLinkID = deepLink.id
+            context.coordinator.pendingMode = deepLink.mode
             context.coordinator.dispatchPendingIfReady()
         }
         guard view.url?.host != url.host else { return }
@@ -56,7 +64,7 @@ struct WebContainer: NSViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         weak var webView: WKWebView?
-        var lastMode: String?
+        var lastLinkID: UUID?
         var pendingMode: String?
         var isReady = false
 
