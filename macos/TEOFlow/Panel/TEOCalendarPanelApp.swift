@@ -10,10 +10,15 @@ struct TEOCalendarPanelApp: App {
     }
 }
 
-final class PanelAppDelegate: NSObject, NSApplicationDelegate {
+final class PanelAppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var panel: NSPanel?
+    private var statusItem: NSStatusItem?
+    private let frameName = "TEOCalendarPanel"
+    private let showCompletedKey = "panelShowCompleted"
+    private let lastSyncedKey = "panelLastSynced"
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        UserDefaults.standard.register(defaults: [showCompletedKey: true])
         let frame = NSRect(x: 120, y: 640, width: 470, height: 430)
         let panel = NSPanel(
             contentRect: frame,
@@ -42,10 +47,90 @@ final class PanelAppDelegate: NSObject, NSApplicationDelegate {
 
         let content = PanelRootView()
         panel.contentView = NSHostingView(rootView: content)
-        panel.center()
+        // Come back where it was left (position and size); only the first launch is centred.
+        if !panel.setFrameUsingName(frameName) {
+            panel.center()
+        }
+        panel.setFrameAutosaveName(frameName)
         panel.makeKeyAndOrderFront(nil)
         self.panel = panel
         NSApp.activate(ignoringOtherApps: true)
+        setUpStatusItem()
+    }
+
+    // MARK: Menu bar item (the panel has no Dock icon, menu or close button)
+
+    private func setUpStatusItem() {
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        if let button = item.button {
+            button.image = NSImage(systemSymbolName: "calendar", accessibilityDescription: "TEO 달력 패널")
+            if button.image == nil {
+                button.title = "TEO"
+            }
+        }
+        let menu = NSMenu()
+        menu.delegate = self
+        menu.addItem(menuItem("패널 보이기 / 숨기기", #selector(togglePanel)))
+        menu.addItem(menuItem("새로고침", #selector(refreshPanel), key: "r"))
+        let completed = menuItem("완료 항목 표시", #selector(toggleCompleted))
+        completed.tag = 1
+        menu.addItem(completed)
+        let floating = menuItem("항상 위에 표시", #selector(toggleFloating))
+        floating.tag = 2
+        menu.addItem(floating)
+        menu.addItem(NSMenuItem.separator())
+        let synced = NSMenuItem(title: "마지막 동기화 —", action: nil, keyEquivalent: "")
+        synced.isEnabled = false
+        synced.tag = 3
+        menu.addItem(synced)
+        menu.addItem(NSMenuItem.separator())
+        menu.addItem(menuItem("종료", #selector(quit), key: "q"))
+        item.menu = menu
+        statusItem = item
+    }
+
+    private func menuItem(_ title: String, _ action: Selector, key: String = "") -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = self
+        return item
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        let defaults = UserDefaults.standard
+        menu.item(withTag: 1)?.state = defaults.bool(forKey: showCompletedKey) ? .on : .off
+        menu.item(withTag: 2)?.state = panel?.level == .floating ? .on : .off
+        let seconds = defaults.double(forKey: lastSyncedKey)
+        let text = seconds > 0
+            ? Date(timeIntervalSince1970: seconds).formatted(date: .omitted, time: .shortened)
+            : "—"
+        menu.item(withTag: 3)?.title = "마지막 동기화 \(text)"
+    }
+
+    @objc private func togglePanel() {
+        guard let panel else { return }
+        if panel.isVisible {
+            panel.orderOut(nil)
+        } else {
+            panel.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    @objc private func refreshPanel() {
+        NotificationCenter.default.post(name: .teoPanelRefresh, object: nil)
+    }
+
+    @objc private func toggleCompleted() {
+        let defaults = UserDefaults.standard
+        defaults.set(!defaults.bool(forKey: showCompletedKey), forKey: showCompletedKey)
+    }
+
+    @objc private func toggleFloating() {
+        guard let panel else { return }
+        panel.level = panel.level == .floating ? .normal : .floating
+    }
+
+    @objc private func quit() {
+        NSApp.terminate(nil)
     }
 }
 

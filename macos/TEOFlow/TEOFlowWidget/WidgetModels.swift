@@ -57,7 +57,8 @@ enum WidgetData {
     static let endpoint = URL(string: "https://theo-flow.dbsguswl0110.workers.dev/api/items")!
 
     /// Throws on network, HTTP or format errors so callers can keep showing their last good data.
-    static func fetch() async throws -> [WidgetItem] {
+    /// The panel asks for completed items too (shown dimmed); widgets only list what is still open.
+    static func fetch(includeCompleted: Bool = false) async throws -> [WidgetItem] {
         let (data, response) = try await URLSession.shared.data(from: endpoint)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
             throw URLError(.badServerResponse)
@@ -65,10 +66,11 @@ enum WidgetData {
         let decoded = try JSONDecoder().decode([Lossy<APIItem>].self, from: data).compactMap { $0.value }
         return decoded.flatMap { item -> [WidgetItem] in
             guard item.deletedAt == nil, let start = item.startDate else { return [] }
-            let parent: [WidgetItem] = (item.type == "todo" || item.type == "task") && !item.completed ? [
+            let onCalendar = item.type == "todo" || item.type == "task"
+            let parent: [WidgetItem] = onCalendar && (includeCompleted || !item.completed) ? [
                 WidgetItem(id: item.id, type: item.type, title: item.title, startDate: start, dueDate: item.dueDate, completed: item.completed)
             ] : []
-            let children = item.subTodos.filter { !$0.completed }.map {
+            let children = item.subTodos.filter { includeCompleted || !$0.completed }.map {
                 WidgetItem(id: $0.id, type: "task", title: $0.title, startDate: $0.startDate ?? start, dueDate: $0.dueDate ?? item.dueDate, completed: $0.completed)
             }
             return parent + children
