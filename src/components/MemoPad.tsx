@@ -4,11 +4,26 @@ import {
   useAnimationControls,
   useDragControls,
   useMotionValue,
+  useTransform,
 } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { DraftItem, ItemType } from "../types";
 import { emptyDraft } from "../lib/dates";
 import MemoFields from "./MemoFields";
+
+// Pixels of drag that commit a swipe; progress below is measured against it.
+const SWIPE_THRESHOLD = 65;
+
+function swipeState(info: PanInfo): { type: ItemType | null; progress: number } {
+  const { x: dx, y: dy } = info.offset;
+  if (Math.abs(dy) > Math.abs(dx))
+    return dy < 0
+      ? { type: "todo", progress: -dy / SWIPE_THRESHOLD }
+      : { type: null, progress: 0 };
+  return dx < 0
+    ? { type: "note", progress: -dx / SWIPE_THRESHOLD }
+    : { type: "task", progress: dx / SWIPE_THRESHOLD };
+}
 
 export default function MemoPad({
   focused,
@@ -18,6 +33,7 @@ export default function MemoPad({
   quiet,
   active,
   onSwipePreview,
+  companion,
 }: {
   focused: boolean;
   onFocus: () => void;
@@ -25,7 +41,10 @@ export default function MemoPad({
   onRegister: (type: ItemType, draft: DraftItem) => Promise<boolean>;
   quiet: boolean;
   active: boolean;
-  onSwipePreview?: (type: ItemType | null) => void;
+  /** Rendered behind the paper's top edge (TEO). */
+  companion?: ReactNode;
+  /** Direction being dragged (null when it would not commit) and how far along it is: 0 to ~1.25. */
+  onSwipePreview?: (type: ItemType | null, progress: number) => void;
 }) {
   const [draft, setDraft] = useState<DraftItem>(emptyDraft);
   const [busy, setBusy] = useState(false);
@@ -38,6 +57,9 @@ export default function MemoPad({
   const dragControls = useDragControls();
   const x = useMotionValue(0),
     y = useMotionValue(0);
+  // The paper leans into the throw and shrinks a little as it is pulled away.
+  const lean = useTransform(x, [-180, 0, 180], [-7, 0, 7]);
+  const pull = useTransform([x, y], ([dx, dy]: number[]) => 1 - Math.min(Math.hypot(dx, dy) / 1000, 0.09));
   useEffect(() => {
     if (!draft.photo) {
       setPhotoPreview("");
@@ -77,10 +99,12 @@ export default function MemoPad({
           ? "제목을 먼저 적어주세요."
           : "시작일과 마감일을 확인해주세요.",
       );
+      onSwipePreview?.(null, 0);
       await returnHome();
       return;
     }
     locked.current = true;
+    onSwipePreview?.(type, 1);
     setBusy(true);
     setError("");
     // A directional throw, not a drop target: the icon does not need to be hit.
@@ -101,7 +125,9 @@ export default function MemoPad({
       },
     });
     try {
-      if (!(await onRegister(type, draft))) throw new Error("save");
+      const saved = await onRegister(type, draft);
+      onSwipePreview?.(null, 0);
+      if (!saved) throw new Error("save");
       setDraft(emptyDraft());
       onBlurFocus();
       if (document.activeElement instanceof HTMLElement)
@@ -113,6 +139,7 @@ export default function MemoPad({
         transition: { duration: quiet ? 0.1 : 0.4 },
       });
     } catch {
+      onSwipePreview?.(null, 0);
       setError("저장하지 못했어요. 내용은 남아 있습니다. 다시 보내주세요.");
       await returnHome();
     } finally {
@@ -121,18 +148,12 @@ export default function MemoPad({
     }
   }
   function directionFor(info: PanInfo): ItemType | null {
-    const { x: dx, y: dy } = info.offset;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < 65) return null;
-    return Math.abs(dy) > Math.abs(dx)
-      ? dy < 0
-        ? "todo"
-        : null
-      : dx < 0
-        ? "note"
-        : "task";
+    const { type, progress } = swipeState(info);
+    return progress >= 1 ? type : null;
   }
   return (
     <div ref={anchor} className={`memo-anchor ${focused ? "is-focused" : ""}`}>
+      {companion}
       <motion.section
         className="memo-pad"
         initial={{ scale: 0, opacity: 0 }}
@@ -164,15 +185,23 @@ export default function MemoPad({
               ?.focus();
           }
         }}
-        onDrag={(_, info) => onSwipePreview?.(directionFor(info))}
+        onDrag={(_, info) => {
+          const { type, progress } = swipeState(info);
+          onSwipePreview?.(progress > 0.15 ? type : null, Math.min(progress, 1.25));
+        }}
         onDragEnd={(_, info) => {
           const type = directionFor(info);
-          onSwipePreview?.(null);
           if (type) void send(type);
-          else void returnHome();
+          else {
+            onSwipePreview?.(null, 0);
+            void returnHome();
+          }
         }}
       >
-        <div className="memo-inner">
+        <motion.div
+          className="memo-inner"
+          style={{ rotate: lean, scale: pull, transformOrigin: "50% 100%" }}
+        >
           <div
             className="memo-handle"
             role="button"
@@ -238,7 +267,7 @@ export default function MemoPad({
               완료
             </button>
           )}
-        </div>
+        </motion.div>
       </motion.section>
     </div>
   );

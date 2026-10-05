@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { CaptureItem } from "../types";
 import { deletePhotoRemote, uploadPhotoRemote } from "../lib/storage";
 import MemoFields from "./MemoFields";
+import { celebrate } from "../lib/feedback";
 
 export default function ItemDetail({
   item,
@@ -19,7 +20,7 @@ export default function ItemDetail({
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function persist(next = draft, close = false) {
+  async function persist(next = draft, close = false): Promise<boolean> {
     if (
       !next.title.trim() ||
       !next.startDate ||
@@ -32,7 +33,7 @@ export default function ItemDetail({
       (next.dueDate && next.dueDate < next.startDate)
     ) {
       setError("제목과 날짜를 확인해주세요. 마감일은 시작일 이후여야 해요.");
-      return;
+      return false;
     }
     setBusy(true);
     setError("");
@@ -41,7 +42,10 @@ export default function ItemDetail({
         setDraft(next);
         setEditing(false);
         if (close) onClose();
-      } else setError("저장하지 못했어요. 다시 시도해주세요.");
+        return true;
+      }
+      setError("저장하지 못했어요. 다시 시도해주세요.");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -108,9 +112,13 @@ export default function ItemDetail({
             type="checkbox"
             checked={!!draft.completed}
             disabled={busy || editing || !!draft.deletedAt}
-            onChange={(e) =>
-              void persist({ ...draft, completed: e.target.checked })
-            }
+            onChange={(e) => {
+              const box = e.currentTarget;
+              const completed = e.target.checked;
+              void persist({ ...draft, completed }).then((saved) => {
+                if (saved && completed) celebrate(box);
+              });
+            }}
           />
           완료
         </label>
@@ -143,7 +151,14 @@ export default function ItemDetail({
                           : t,
                       ),
                     };
-                    editing ? setDraft(next) : void persist(next);
+                    if (editing) setDraft(next);
+                    else {
+                      const box = e.currentTarget;
+                      const completed = e.target.checked;
+                      void persist(next).then((saved) => {
+                        if (saved && completed) celebrate(box);
+                      });
+                    }
                   }}
                 />
                 <span>{s.title || "새 Task"}</span>

@@ -125,6 +125,18 @@ The layout tracks the browser visual viewport when the keyboard appears. The exp
 
 `0003_folders_tasks.sql` adds a `folders` table, a nullable Note folder, and content/start/due fields for child Tasks without deleting existing data. `GET/POST /api/folders` lists/creates folders; Note collection and detail provide folder assignment. Folder names are currently flat, not nested.
 
+## TEO companion and feedback
+
+TEO, the apricot toy poodle, lives on the home screen. He sits on a small cushion behind the memo pad's top edge (`TeoCompanion`), drawn from transparent frames of the supplied character sheet (`public/assets/teo-sprites.webp`). Regenerate that sheet and `src/lib/teoSprites.generated.ts` with `python3 tools/extract_teo_sprites.py` (needs pillow, numpy, scipy); frame sequences live in `src/lib/teoSprites.ts`.
+
+- **Idle:** slow blinks, and every 7–15 s a scratch, paw lick, yawn or look around. After about 24 s without any touch he yawns, curls up and sleeps; any touch wakes him.
+- **While swiping:** the paper leans into the throw, shrinks slightly and the destination icon reaches out, glows and dims its neighbours in proportion to how far the swipe has gone (`--swipe` on the stage, 0 to 1). TEO looks toward the destination, and once the 65 px threshold is passed the icon wiggles and TEO cheers with his tongue out (a short haptic tick marks the moment).
+- **On landing:** the icon squashes, hops and ripples, a burst of hearts / stars / bones / paws flies out (`BurstLayer`), the badge count pops, TEO cheers, and the toast carries his face. The destination stays lit until the server has accepted the memo; a failed save returns the memo without celebrating.
+- **Counts and progress:** each icon shows a badge with open items (Note shows all notes; Calendar shows what is open today). Once anything is due today, the footer shows "오늘 done/total" as a bone-coloured meter; finishing the last item of the day triggers a bigger celebration once per day.
+- **Checking things off:** checkboxes pop, confetti bursts from the box and TEO cheers (calendar cards, the timeline, task details and child tasks).
+- **Petting:** tapping TEO sends hearts. Empty lists show him napping.
+- **Settings:** "진동 피드백" (default on, `navigator.vibrate`; the Android shell declares the `VIBRATE` permission) and "효과음" (default off, short synthesised tones). "움직임 줄이기" or the system reduced-motion setting turns off particles, hopping, cheering and entrance animations and keeps TEO on a single still frame.
+
 ## Verification
 
 ```bash
@@ -133,9 +145,9 @@ npm run build
 npx playwright install chromium
 # Start Vite on port 5174 in a separate terminal:
 npm run dev -- --port 5174
-npx playwright test tests/flow.spec.ts
+npx playwright test tests/flow.spec.ts tests/startup.spec.ts tests/delight.spec.ts
 # With local Wrangler running on port 8787:
 node tests/api-smoke.mjs
 ```
 
-`CHROME_PATH` optionally selects an installed Chrome executable. `TEST_URL` changes the UI test server (default http://127.0.0.1:5174). Tests cover 344/360/412 px folded, 768/900 px expanded, 1440 px desktop, touch drag, all swipe directions, draft retention, calendar list navigation, folder classification and Todo child Tasks. API smoke tests are deliberately hardcoded to localhost and remove only their own test records. Browser-emulated viewports and keyboard resizing do not replace final testing on a physical Galaxy Fold and its Android WebView.
+`CHROME_PATH` optionally selects an installed Chrome executable. `TEST_URL` changes the UI test server (default http://127.0.0.1:5174). `tests/delight.spec.ts` covers the swipe progress, landing burst and badge, petting, check-off celebration, the daily meter and reduced motion. Tests cover 344/360/412 px folded, 768/900 px expanded, 1440 px desktop, touch drag, all swipe directions, draft retention, calendar list navigation, folder classification and Todo child Tasks. API smoke tests are deliberately hardcoded to localhost and remove only their own test records. Browser-emulated viewports and keyboard resizing do not replace final testing on a physical Galaxy Fold and its Android WebView.

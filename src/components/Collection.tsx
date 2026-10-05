@@ -3,6 +3,8 @@ import { useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 import type { CaptureItem, DraftItem, ItemType } from "../types";
 import { emptyDraft } from "../lib/dates";
+import { FRAME } from "../lib/teoSprites";
+import TeoSprite from "./TeoSprite";
 import MemoFields from "./MemoFields";
 export default function Collection({
   kind,
@@ -213,7 +215,10 @@ export default function Collection({
         </section>
       )}
       {!visible.length && !childTasks.length && (
-        <div className="empty-state">아직 비어 있어요.</div>
+        <div className="empty-state">
+          <TeoSprite cell={FRAME.napping} size={96} />
+          아직 비어 있어요.
+        </div>
       )}
       <div className="collection-list">
         {visible.map((i) => (

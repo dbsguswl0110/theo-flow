@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "test": "playwright test tests/flow.spec.ts",
+    "test": "playwright test tests/flow.spec.ts tests/startup.spec.ts tests/delight.spec.ts",
     "test:storage": "node tests/api-smoke.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",

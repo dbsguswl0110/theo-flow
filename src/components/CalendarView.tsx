@@ -2,6 +2,9 @@ import { motion } from "framer-motion";
 import { useMemo, useState } from "react";
 import type { CaptureItem } from "../types";
 import { dayKey } from "../lib/dates";
+import { celebrate } from "../lib/feedback";
+import { FRAME } from "../lib/teoSprites";
+import TeoSprite from "./TeoSprite";
 
 type CalendarEntry = CaptureItem & { sourceId?: string; isSubtask?: boolean };
 
@@ -134,7 +137,7 @@ export default function CalendarView({
   const sourceFor = (entry: CalendarEntry) =>
     entry.sourceId ? items.find((item) => item.id === entry.sourceId) : entry;
 
-  async function toggleCompleted(entry: CalendarEntry, completed: boolean) {
+  async function toggleCompleted(entry: CalendarEntry, completed: boolean, box?: Element) {
     const parent = sourceFor(entry);
     if (!parent) return;
     setCompleting((current) => [...current, entry.id]);
@@ -151,6 +154,7 @@ export default function CalendarView({
       setCompleting((current) => current.filter((id) => id !== entry.id));
       return;
     }
+    if (completed && box) celebrate(box);
     window.setTimeout(
       () => setCompleting((current) => current.filter((id) => id !== entry.id)),
       320,
@@ -159,7 +163,7 @@ export default function CalendarView({
 
   const renderColumnItems = (column: (typeof panelColumns)[number]) => {
     if (!column.items.length) {
-      return <div className="calendar-information-empty"><span>✦</span><p>{scope === "date" ? "없음" : "아직 없음"}</p><small>{scope === "date" ? "다른 날짜를 선택해보세요." : "항목을 추가해보세요."}</small></div>;
+      return <div className="calendar-information-empty"><TeoSprite cell={FRAME.napping} size={64} /><p>{scope === "date" ? "없음" : "아직 없음"}</p><small>{scope === "date" ? "다른 날짜를 선택해보세요." : "항목을 추가해보세요."}</small></div>;
     }
     const groups = scope === "all"
       ? [...column.items.reduce((map, item) => {
@@ -178,7 +182,7 @@ export default function CalendarView({
         return (
           <article key={item.id} className={`calendar-information-card ${item.type} ${item.completed ? "is-completed" : ""} ${isCompleting ? "is-completing" : ""}`}>
             {item.type !== "note" && (
-              <input type="checkbox" checked={item.completed} onChange={(event) => void toggleCompleted(item, event.target.checked)} aria-label={`${item.title} 완료`} />
+              <input type="checkbox" checked={item.completed} onChange={(event) => void toggleCompleted(item, event.target.checked, event.currentTarget)} aria-label={`${item.title} 완료`} />
             )}
             <button type="button" className="calendar-information-open" onClick={() => parent && onSelect(parent)}>
               <strong style={{ fontSize: `${titleSize(item.title)}px` }}>{item.title}</strong>
@@ -323,7 +327,7 @@ export default function CalendarView({
                   return (
                     <article className={`calendar-timeline-row ${item.type} ${isCompleting ? "is-completing" : ""}`} key={`${group.date}-${item.id}`}>
                       {item.type !== "note" ? (
-                        <input type="checkbox" checked={item.completed} onChange={(event) => void toggleCompleted(item, event.target.checked)} aria-label={`${item.title} 완료`} />
+                        <input type="checkbox" checked={item.completed} onChange={(event) => void toggleCompleted(item, event.target.checked, event.currentTarget)} aria-label={`${item.title} 완료`} />
                       ) : <i className="timeline-dot" aria-hidden="true" />}
                       <button type="button" className="calendar-timeline-open" onClick={() => parent && onSelect(parent)}>
                         <strong>{item.title}</strong>
@@ -333,7 +337,7 @@ export default function CalendarView({
                   );
                 })}
               </section>
-            )) : <div className="calendar-information-empty"><span>✦</span><p>기록이 없습니다</p><small>이 달에 날짜가 있는 항목을 추가해보세요.</small></div>}
+            )) : <div className="calendar-information-empty"><TeoSprite cell={FRAME.napping} size={64} /><p>기록이 없습니다</p><small>이 달에 날짜가 있는 항목을 추가해보세요.</small></div>}
           </div>
         </aside>}
       </div>
