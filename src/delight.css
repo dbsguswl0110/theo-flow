@@ -1,0 +1,523 @@
+/* TEO's playful layer: companion, swipe feedback, catch animation, badges, particles, progress. */
+
+:root {
+  --teo-note: #ec8fa0;
+  --teo-task: #6f9fd6;
+  --teo-todo: #7fb47c;
+  --teo-calendar: #e9a35f;
+  --teo-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Faint paw prints behind everything on the home stage. */
+.home-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Cg fill='%23c9926e' fill-opacity='.09'%3E%3Cg transform='rotate(-16 36 40)'%3E%3Cellipse cx='36' cy='46' rx='8.5' ry='7'/%3E%3Ccircle cx='25' cy='34' r='3.8'/%3E%3Ccircle cx='32' cy='27' r='4'/%3E%3Ccircle cx='41' cy='27' r='4'/%3E%3Ccircle cx='48' cy='34' r='3.8'/%3E%3C/g%3E%3Cg transform='rotate(14 112 112)'%3E%3Cellipse cx='112' cy='118' rx='8.5' ry='7'/%3E%3Ccircle cx='101' cy='106' r='3.8'/%3E%3Ccircle cx='108' cy='99' r='4'/%3E%3Ccircle cx='117' cy='99' r='4'/%3E%3Ccircle cx='124' cy='106' r='3.8'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  background-size: 150px 150px;
+}
+
+/* ───────── TEO, the companion sitting behind the memo pad ───────── */
+.memo-anchor > .memo-pad {
+  position: relative;
+  z-index: 1;
+}
+.teo-companion {
+  position: absolute;
+  left: 6%;
+  bottom: calc(100% - 40px);
+  z-index: 0;
+  width: 108px;
+  height: 108px;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+  transition:
+    transform 0.45s var(--teo-spring),
+    opacity 0.25s ease;
+  filter: drop-shadow(0 5px 6px rgba(120, 80, 50, 0.16));
+}
+/* TEO's cushion: its front rim hides his paws, and stays put when the paper is thrown away. */
+.teo-companion::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 104px;
+  height: 34px;
+  margin-left: -52px;
+  box-sizing: border-box;
+  border-radius: 18px 18px 16px 16px;
+  pointer-events: none;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cg fill='%23e3b08a'%3E%3Cellipse cx='12' cy='16' rx='5.2' ry='4.2'/%3E%3Ccircle cx='5.6' cy='10.4' r='2.3'/%3E%3Ccircle cx='9.7' cy='6.4' r='2.4'/%3E%3Ccircle cx='14.3' cy='6.4' r='2.4'/%3E%3Ccircle cx='18.4' cy='10.4' r='2.3'/%3E%3C/g%3E%3C/svg%3E")
+      center 12px / 18px 18px no-repeat,
+    linear-gradient(180deg, #fbe6d4 0%, #f3cfb2 100%);
+  box-shadow:
+    inset 0 0 0 3px #f8dcc4,
+    inset 0 0 0 4.5px rgba(255, 255, 255, 0.75),
+    0 6px 10px rgba(120, 80, 50, 0.16);
+}
+.teo-companion.is-away {
+  opacity: 0;
+  transform: translateY(34px) scale(0.6);
+}
+.memo-anchor.is-focused .teo-companion {
+  opacity: 0;
+  transform: translateY(48px) scale(0.7);
+  pointer-events: none;
+}
+.teo-pet {
+  display: block;
+  width: 108px;
+  height: 108px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+.teo-pet:active .teo-sprite {
+  transform: scale(1.06, 0.94);
+}
+.teo-sprite {
+  display: block;
+  background-repeat: no-repeat;
+  transform-origin: 50% 100%;
+  transition: transform 0.18s ease;
+}
+.teo-companion[data-mood="happy"] .teo-sprite {
+  animation: teo-hop 0.34s ease-in-out infinite alternate;
+}
+.teo-companion[data-look="todo"] .teo-sprite {
+  transform: translateY(-4px);
+}
+.teo-companion[data-low] .teo-sprite {
+  transform: translateY(-36px);
+}
+.teo-companion[data-mood="sleep"] {
+  filter: drop-shadow(0 5px 6px rgba(120, 80, 50, 0.1)) saturate(0.9);
+}
+@keyframes teo-hop {
+  from {
+    transform: translateY(0) scale(1, 1);
+  }
+  to {
+    transform: translateY(-9px) scale(0.97, 1.04);
+  }
+}
+
+/* ───────── The four icons: per-type colour, reach toward a swipe, catch on landing ───────── */
+.theo-button.theo-note::before {
+  background: #fbe4e4;
+  border-color: #f3cfcf;
+}
+.theo-button.theo-task::before {
+  background: #e3edf8;
+  border-color: #cfdff0;
+}
+.theo-button.theo-todo::before {
+  background: #e7f1df;
+  border-color: #d4e5c9;
+}
+.theo-button.theo-calendar::before {
+  background: #fcebd9;
+  border-color: #f2d8bd;
+}
+.theo-art-wrap {
+  position: relative;
+  z-index: 1;
+  display: block;
+  transform-origin: 50% 80%;
+  transition: transform 0.22s var(--teo-spring);
+}
+
+.home-stage[data-swipe="note"] .note-position .theo-button::before,
+.home-stage[data-swipe="task"] .task-position .theo-button::before,
+.home-stage[data-swipe="todo"] .todo-position .theo-button::before {
+  background: var(--glow-bg, #f5d7c1);
+  box-shadow:
+    0 0 0 calc(min(var(--swipe, 0), 1) * 9px) var(--glow, #f5d7c155),
+    0 8px 20px #9d6f5344;
+  transform: translateX(-50%) scale(calc(1 + min(var(--swipe, 0), 1) * 0.2));
+}
+.home-stage[data-swipe="note"] .note-position {
+  --glow: #ec8fa04d;
+  --glow-bg: #f8d3d9;
+}
+.home-stage[data-swipe="task"] .task-position {
+  --glow: #6f9fd64d;
+  --glow-bg: #cfe0f4;
+}
+.home-stage[data-swipe="todo"] .todo-position {
+  --glow: #7fb47c4d;
+  --glow-bg: #d3e8cb;
+}
+/* The target reaches out to meet the paper. */
+.home-stage[data-swipe="note"] .note-position .theo-art-wrap {
+  transform: translateX(calc(min(var(--swipe, 0), 1) * 9px)) scale(calc(1 + min(var(--swipe, 0), 1) * 0.1));
+}
+.home-stage[data-swipe="task"] .task-position .theo-art-wrap {
+  transform: translateX(calc(min(var(--swipe, 0), 1) * -9px)) scale(calc(1 + min(var(--swipe, 0), 1) * 0.1));
+}
+.home-stage[data-swipe="todo"] .todo-position .theo-art-wrap {
+  transform: translateY(calc(min(var(--swipe, 0), 1) * 8px)) scale(calc(1 + min(var(--swipe, 0), 1) * 0.1));
+}
+/* The others politely step back. */
+.home-stage[data-swipe="note"] .theo-anchor:not(.note-position),
+.home-stage[data-swipe="task"] .theo-anchor:not(.task-position),
+.home-stage[data-swipe="todo"] .theo-anchor:not(.todo-position) {
+  opacity: calc(1 - min(var(--swipe, 0), 1) * 0.4);
+  transition: opacity 0.2s;
+}
+/* Past the threshold: it is ready to catch. */
+.home-stage[data-ready] .note-position .theo-art-wrap,
+.home-stage[data-ready] .task-position .theo-art-wrap,
+.home-stage[data-ready] .todo-position .theo-art-wrap {
+  animation: teo-ready 0.5s ease-in-out infinite alternate;
+}
+.home-stage[data-ready="true"][data-swipe="note"] .note-position .theo-label,
+.home-stage[data-ready="true"][data-swipe="task"] .task-position .theo-label,
+.home-stage[data-ready="true"][data-swipe="todo"] .todo-position .theo-label {
+  color: #a8533d;
+}
+@keyframes teo-ready {
+  from {
+    rotate: -5deg;
+  }
+  to {
+    rotate: 5deg;
+  }
+}
+
+/* Landing: squash on impact, hop, settle; the ring ripples outward. */
+.theo-button.accepted .theo-art-wrap {
+  animation: teo-munch 0.75s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+.theo-button.accepted::before {
+  animation: teo-ring 0.8s ease-out;
+}
+@keyframes teo-munch {
+  0% {
+    transform: scale(1.14);
+  }
+  18% {
+    transform: scale(1.32, 0.74) translateY(5px);
+  }
+  40% {
+    transform: scale(0.86, 1.22) translateY(-11px) rotate(-7deg);
+  }
+  62% {
+    transform: scale(1.1, 0.92) translateY(2px) rotate(5deg);
+  }
+  82% {
+    transform: scale(0.97, 1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+@keyframes teo-ring {
+  0% {
+    box-shadow: 0 0 0 0 #f2a35e99;
+  }
+  100% {
+    box-shadow: 0 0 0 20px #f2a35e00;
+  }
+}
+.accepted-mark {
+  display: none;
+}
+
+/* Count badge */
+.theo-count {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  z-index: 3;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  background: var(--teo-todo);
+  box-shadow:
+    0 0 0 2px #faf7f3,
+    0 3px 8px rgba(120, 70, 40, 0.28);
+  animation: teo-count-pop 0.55s cubic-bezier(0.34, 1.8, 0.5, 1) both;
+}
+.theo-note .theo-count {
+  background: var(--teo-note);
+}
+.theo-task .theo-count {
+  background: var(--teo-task);
+}
+.theo-calendar .theo-count {
+  background: var(--teo-calendar);
+}
+@keyframes teo-count-pop {
+  0% {
+    transform: scale(0.2);
+  }
+  60% {
+    transform: scale(1.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ───────── Particles ───────── */
+.burst-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  overflow: hidden;
+  pointer-events: none;
+}
+.burst {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.burst-piece {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1px rgba(90, 50, 30, 0.2));
+}
+.burst-ring {
+  position: absolute;
+  left: -28px;
+  top: -28px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid var(--teo-calendar);
+  opacity: 0;
+  animation: burst-ring 0.6s ease-out;
+}
+.burst-ring-note,
+.burst-ring-love {
+  border-color: var(--teo-note);
+}
+.burst-ring-task {
+  border-color: var(--teo-task);
+}
+.burst-ring-todo {
+  border-color: var(--teo-todo);
+}
+.burst-ring-done {
+  border-color: #ffd27a;
+  border-width: 4px;
+}
+@keyframes burst-ring {
+  0% {
+    transform: scale(0.3);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* ───────── Today meter (replaces the caption once something is due today) ───────── */
+.home-caption .today-meter {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 6px 13px 6px 9px;
+  border-radius: 999px;
+  border: 1px solid #eadfd4;
+  background: #fffdf9;
+  box-shadow: 0 4px 12px rgba(118, 87, 65, 0.08);
+  color: #6b4a38;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.home-caption .today-meter-track {
+  position: relative;
+  display: block;
+  margin: 0;
+  width: 74px;
+  height: 10px;
+  border-radius: 6px;
+  background: #f0e4d8;
+  overflow: hidden;
+}
+.today-meter-track i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  min-width: 10px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f2b27d, #e9936b);
+  transition:
+    width 0.7s cubic-bezier(0.34, 1.4, 0.5, 1),
+    background 0.4s;
+}
+.today-meter b {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.today-meter.is-complete {
+  border-color: #a7cfa5;
+}
+.today-meter.is-complete .today-meter-track i {
+  background: linear-gradient(90deg, #9ccf98, #7fb47c);
+}
+.today-meter.is-complete b {
+  color: #4a7d48;
+}
+
+/* ───────── Toast with TEO's face ───────── */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 10px;
+  animation: toast-bounce 0.5s var(--teo-spring);
+}
+.toast-teo {
+  flex: none;
+  width: 44px;
+  height: 32px;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fbe8d6;
+  display: block;
+}
+.toast-teo .teo-sprite {
+  margin: -20px 0 0 -4px;
+}
+@keyframes toast-bounce {
+  0% {
+    transform: translateY(18px) scale(0.9);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* ───────── Checkboxes that feel good to tick ───────── */
+.calendar-information-card > input[type="checkbox"],
+.calendar-timeline-row > input[type="checkbox"],
+.completion-row input[type="checkbox"],
+.child-task summary input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cdb9a6;
+  border-radius: 7px;
+  background: #fff;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    transform 0.2s var(--teo-spring);
+}
+.calendar-information-card > input[type="checkbox"]:active,
+.calendar-timeline-row > input[type="checkbox"]:active,
+.completion-row input[type="checkbox"]:active,
+.child-task summary input[type="checkbox"]:active {
+  transform: scale(0.82);
+}
+.calendar-information-card > input[type="checkbox"]:checked,
+.calendar-timeline-row > input[type="checkbox"]:checked,
+.completion-row input[type="checkbox"]:checked,
+.child-task summary input[type="checkbox"]:checked {
+  border-color: #7fb47c;
+  background: #8cc48a;
+  animation: teo-check-pop 0.45s var(--teo-spring);
+}
+.calendar-information-card > input[type="checkbox"]:checked::after,
+.calendar-timeline-row > input[type="checkbox"]:checked::after,
+.completion-row input[type="checkbox"]:checked::after,
+.child-task summary input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 10px;
+  border: solid #fff;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+@keyframes teo-check-pop {
+  0% {
+    transform: scale(0.7);
+  }
+  55% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Cards slide in one after another. */
+.calendar-information-card,
+.calendar-timeline-row {
+  animation: teo-rise 0.38s var(--teo-spring) both;
+}
+.calendar-information-card:nth-child(2) {
+  animation-delay: 0.04s;
+}
+.calendar-information-card:nth-child(3) {
+  animation-delay: 0.08s;
+}
+.calendar-information-card:nth-child(4) {
+  animation-delay: 0.12s;
+}
+.calendar-information-card:nth-child(n + 5) {
+  animation-delay: 0.16s;
+}
+@keyframes teo-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ───────── Calm mode: no hopping, no confetti, no staggered entrances ───────── */
+.home-stage.quiet .teo-sprite,
+.home-stage.quiet .theo-art-wrap,
+.home-stage.quiet .theo-count,
+.home-stage.quiet .theo-button::before {
+  animation: none !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .teo-sprite,
+  .theo-art-wrap,
+  .theo-count,
+  .toast,
+  .calendar-information-card,
+  .calendar-timeline-row,
+  .theo-button::before {
+    animation: none !important;
+  }
+  .teo-companion,
+  .theo-art-wrap {
+    transition: none;
+  }
+}

@@ -152,17 +152,87 @@ test("three throws, folder classification, Todo child Task and combined calendar
   await expect(
     page.locator(".calendar-bar").filter({ hasText: "개인 노트" }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "Task 목록", exact: true }).click();
-  await expect(page.locator(".collection-open").first()).toContainText(
-    "독립 Task",
-  );
-  await expect(page.locator(".collection-open").last()).toContainText(
-    "자료 정리",
-  );
+  // Notes never draw on the month grid; they sit in the Information columns with To Do and Task.
+  const column = (kind: string) =>
+    page.locator(`.calendar-information-column.${kind}`);
+  await expect(column("note")).toContainText("개인 노트");
+  await expect(column("task")).toContainText("독립 Task");
+  await expect(column("task")).toContainText("자료 정리");
+  await expect(column("todo")).toContainText("업무 Todo");
+  await page.getByRole("button", { name: "캘린더 닫기" }).click();
+  await expect(page.locator(".calendar-screen")).toHaveCount(0);
+});
+test("widget deep link opens the list once and one back returns home", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 412, height: 915 });
+  await ready(page);
+  const before = await page.evaluate(() => history.length);
+  // The Android shell re-sends the link while the page loads.
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() =>
+      window.dispatchEvent(
+        new CustomEvent("theo-widget-open", { detail: "note" }),
+      ),
+    );
+    await page.waitForTimeout(200);
+  }
+  await expect(page.locator(".collection-panel")).toHaveCount(1);
+  expect(await page.evaluate(() => history.length)).toBe(before + 1);
   await page.getByRole("button", { name: "목록 닫기" }).click();
-  await expect(page.locator(".calendar-screen")).toBeVisible();
-  await page.getByRole("button", { name: "Todo 목록", exact: true }).click();
-  await expect(page.locator(".collection-open")).toContainText("업무 Todo");
+  await expect(page.locator(".collection-panel")).toHaveCount(0);
+});
+test("permanent delete asks first and updates the trash in place", async ({
+  page,
+}) => {
+  const base = {
+    content: "",
+    completed: false,
+    createdAt: "2026-10-01T00:00:00Z",
+    updatedAt: "2026-10-01T00:00:00Z",
+    subtasks: [],
+    photos: [],
+    folder: null,
+    type: "note",
+    startDate: "2026-10-05",
+    dueDate: null,
+  };
+  let items: any[] = [
+    { ...base, id: "t1", title: "옛 메모", deletedAt: "2026-10-04T00:00:00Z" },
+    { ...base, id: "t2", title: "지난 회의", deletedAt: "2026-10-04T00:00:00Z" },
+    { ...base, id: "t3", title: "남는 메모", deletedAt: "2026-10-04T00:00:00Z" },
+  ];
+  const deleted: string[] = [];
+  await page.route("**/api/items**", async (r) => {
+    const req = r.request();
+    if (req.method() === "DELETE") {
+      const id = req.url().split("/").pop()!;
+      deleted.push(id);
+      items = items.filter((i) => i.id !== id);
+      await r.fulfill({ json: { ok: true } });
+    } else await r.fulfill({ json: items });
+  });
+  await page.setViewportSize({ width: 412, height: 915 });
+  await ready(page);
+  await page.getByRole("button", { name: "Trash", exact: true }).click();
+  await page.getByLabel("옛 메모 선택").check();
+  await page.getByLabel("지난 회의 선택").check();
+  await page.getByRole("button", { name: "영구삭제", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toContainText(
+    "2개를 영구 삭제할까요?",
+  );
+  await page.getByRole("button", { name: "취소", exact: true }).click();
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+  expect(deleted).toHaveLength(0);
+  await page.getByRole("button", { name: "영구삭제", exact: true }).click();
+  await page.getByRole("button", { name: "영구 삭제", exact: true }).click();
+  await expect(page.getByRole("status")).toContainText("2개를 영구 삭제했어요");
+  await expect(page.locator(".collection-card")).toHaveCount(1);
+  await expect(page.locator(".collection-card")).toContainText("남는 메모");
+  // Staying on the trash screen means the page was not reloaded (no intro replay).
+  await expect(page.locator(".collection-panel")).toHaveCount(1);
+  await expect(page.locator(".startup")).toHaveCount(0);
+  expect(deleted.sort()).toEqual(["t1", "t2"]);
 });
 test("keyboard viewport reserves classification icons and failed fling preserves draft", async ({
   page,

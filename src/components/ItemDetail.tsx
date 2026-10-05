@@ -3,6 +3,10 @@ import { useState } from "react";
 import type { CaptureItem } from "../types";
 import { deletePhotoRemote, uploadPhotoRemote } from "../lib/storage";
 import MemoFields from "./MemoFields";
+import { ScreenHeader, TrashIcon, UndoIcon } from "./ui";
+import { deadlineColor, deadlineProgress } from "../lib/deadlineColor";
+import { dayKey } from "../lib/dates";
+import { celebrate } from "../lib/feedback";
 
 export default function ItemDetail({
   item,
@@ -19,7 +23,7 @@ export default function ItemDetail({
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function persist(next = draft, close = false) {
+  async function persist(next = draft, close = false): Promise<boolean> {
     if (
       !next.title.trim() ||
       !next.startDate ||
@@ -32,7 +36,7 @@ export default function ItemDetail({
       (next.dueDate && next.dueDate < next.startDate)
     ) {
       setError("제목과 날짜를 확인해주세요. 마감일은 시작일 이후여야 해요.");
-      return;
+      return false;
     }
     setBusy(true);
     setError("");
@@ -41,40 +45,52 @@ export default function ItemDetail({
         setDraft(next);
         setEditing(false);
         if (close) onClose();
-      } else setError("저장하지 못했어요. 다시 시도해주세요.");
+        return true;
+      }
+      setError("저장하지 못했어요. 다시 시도해주세요.");
+      return false;
     } finally {
       setBusy(false);
     }
   }
   return (
     <motion.section
-      className="panel detail-screen"
-      initial={{ opacity: 0, scale: 0.94 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.94 }}
+      className={`panel tc-screen detail-screen tone-${draft.type}`}
+      initial={{ opacity: 0, scale: 0.95, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95, y: 20, pointerEvents: "none" as const, transition: { duration: 0.18, ease: "easeIn" } }}
+      transition={{ type: "spring", stiffness: 380, damping: 32 }}
     >
-      <header className="panel-header">
-        <button aria-label="상세 닫기" disabled={busy} onClick={onClose}>
-          ←
-        </button>
-        <h1>
-          {draft.type === "todo"
-            ? "Todo"
-            : draft.type === "note"
-              ? "Note"
-              : "Task"}
-        </h1>
-        <button
-          disabled={busy || !!draft.deletedAt}
-          onClick={() => {
-            if (editing) setDraft(item);
-            setEditing(!editing);
-            setError("");
-          }}
-        >
-          {editing ? "취소" : "Edit"}
-        </button>
-      </header>
+      <ScreenHeader
+        title={draft.type === "todo" ? "Todo" : draft.type === "note" ? "Note" : "Task"}
+        subtitle={
+          draft.deletedAt
+            ? "휴지통에 있어요. 복원하면 돌아와요"
+            : draft.type === "todo"
+              ? "Task로 쪼개서 하나씩 끝내요"
+              : draft.type === "task"
+                ? "끝내면 TEO가 좋아해요"
+                : "TEO가 물어 온 생각"
+        }
+        tone={draft.type}
+        backLabel="상세 닫기"
+        onBack={onClose}
+        disabled={busy}
+        actions={
+          <button
+            type="button"
+            className={`tc-soft-btn ${editing ? "is-on" : ""}`}
+            disabled={busy || !!draft.deletedAt}
+            onClick={() => {
+              if (editing) setDraft(item);
+              setEditing(!editing);
+              setError("");
+            }}
+          >
+            {editing ? "취소" : "Edit"}
+          </button>
+        }
+      />
       <div className="detail-memo memo-paper">
         <MemoFields
           draft={draft}
@@ -82,6 +98,9 @@ export default function ItemDetail({
           onChange={(fields) => setDraft({ ...draft, ...fields })}
         />
       </div>
+      {draft.type !== "note" && draft.dueDate && (
+        <DeadlineCard startDate={draft.startDate} dueDate={draft.dueDate} completed={!!draft.completed} />
+      )}
       {draft.type === "note" && (
         <label className="folder-select">
           Folder
@@ -108,16 +127,36 @@ export default function ItemDetail({
             type="checkbox"
             checked={!!draft.completed}
             disabled={busy || editing || !!draft.deletedAt}
-            onChange={(e) =>
-              void persist({ ...draft, completed: e.target.checked })
-            }
+            onChange={(e) => {
+              const box = e.currentTarget;
+              const completed = e.target.checked;
+              void persist({ ...draft, completed }).then((saved) => {
+                if (saved && completed) celebrate(box);
+              });
+            }}
           />
           완료
         </label>
       )}
       {draft.type === "todo" && (
         <section className="subtask-editor">
-          <h2>Todo</h2>
+          <h2>
+            Task
+            {!!draft.subtasks?.length && (
+              <small>
+                {draft.subtasks.filter((t) => t.completed).length}/{draft.subtasks.length}
+              </small>
+            )}
+          </h2>
+          {!!draft.subtasks?.length && (
+            <i className="tc-progress" aria-hidden="true">
+              <b
+                style={{
+                  width: `${(draft.subtasks.filter((t) => t.completed).length / draft.subtasks.length) * 100}%`,
+                }}
+              />
+            </i>
+          )}
           {!draft.subtasks?.length && (
             <p className="muted">Edit에서 Todo 안에 Task를 추가해보세요.</p>
           )}
@@ -143,7 +182,14 @@ export default function ItemDetail({
                           : t,
                       ),
                     };
-                    editing ? setDraft(next) : void persist(next);
+                    if (editing) setDraft(next);
+                    else {
+                      const box = e.currentTarget;
+                      const completed = e.target.checked;
+                      void persist(next).then((saved) => {
+                        if (saved && completed) celebrate(box);
+                      });
+                    }
                   }}
                 />
                 <span>{s.title || "새 Task"}</span>
@@ -329,7 +375,7 @@ export default function ItemDetail({
         {!editing && (
           <button
             disabled={busy}
-            className="secondary-btn"
+            className={`secondary-btn tc-trash-btn ${draft.deletedAt ? "is-restore" : ""}`}
             onClick={() =>
               void persist(
                 {
@@ -340,10 +386,46 @@ export default function ItemDetail({
               )
             }
           >
+            {draft.deletedAt ? <UndoIcon /> : <TrashIcon />}
             {draft.deletedAt ? "복원" : "휴지통으로 이동"}
           </button>
         )}
       </div>
     </motion.section>
+  );
+}
+
+function DeadlineCard({
+  startDate,
+  dueDate,
+  completed,
+}: {
+  startDate: string;
+  dueDate: string;
+  completed: boolean;
+}) {
+  const progress = completed ? 0 : deadlineProgress(startDate, dueDate);
+  const left = Math.round(
+    (new Date(`${dueDate}T00:00:00`).getTime() - new Date(`${dayKey()}T00:00:00`).getTime()) / 86400000,
+  );
+  const text = completed
+    ? "끝냈어요! 멋져요"
+    : left < 0
+      ? `마감이 ${-left}일 지났어요`
+      : left === 0
+        ? "오늘이 마감이에요"
+        : `마감까지 ${left}일 남았어요`;
+  return (
+    <div className={`tc-deadline-card ${completed ? "is-done" : ""}`}>
+      <span>{text}</span>
+      <i aria-hidden="true">
+        <b
+          style={{
+            width: `${completed ? 100 : Math.max(progress, 0.04) * 100}%`,
+            background: completed ? "#8cc48a" : deadlineColor(progress),
+          }}
+        />
+      </i>
+    </div>
   );
 }

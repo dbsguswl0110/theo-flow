@@ -7,6 +7,8 @@ export default function FloatingTheo({
   onClick,
   quiet,
   accepted,
+  pulse = 0,
+  count = 0,
 }: {
   kind: TheoKind;
   label: string;
@@ -14,6 +16,10 @@ export default function FloatingTheo({
   onClick: () => void;
   quiet: boolean;
   accepted: boolean;
+  /** Changes every time something lands here, so the catch animation restarts. */
+  pulse?: number;
+  /** Open items behind this icon; shown as a badge that bumps when it grows. */
+  count?: number;
 }) {
   const durations = {
     todo: 5.4,
@@ -26,9 +32,9 @@ export default function FloatingTheo({
     <div className={`theo-anchor ${className}`} data-target={kind}>
       <motion.button
         type="button"
-        className={`theo-button ${accepted ? "accepted" : ""}`}
+        className={`theo-button theo-${kind} ${accepted ? "accepted" : ""}`}
         onClick={onClick}
-        aria-label={label}
+        aria-label={count > 0 ? `${label} ${count}개` : label}
         animate={
           quiet ? { x: 0, y: 0 } : { x: [0, 3, 0, -3, 0], y: [0, -3, 0, 3, 0] }
         }
@@ -37,11 +43,17 @@ export default function FloatingTheo({
           repeat: quiet ? 0 : Infinity,
           ease: "easeInOut",
         }}
-        whileTap={{ scale: 0.9 }}
+        whileTap={{ scale: 0.88 }}
       >
-        <TheoArt kind={kind} />
+        <span className="theo-art-wrap" key={accepted ? pulse : "rest"}>
+          <TheoArt kind={kind} />
+        </span>
         <span className="theo-label">{label}</span>
-        {accepted && <span className="accepted-mark">✓</span>}
+        {count > 0 && (
+          <span className="theo-count" key={count} aria-hidden="true">
+            {count > 99 ? "99+" : count}
+          </span>
+        )}
       </motion.button>
     </div>
   );

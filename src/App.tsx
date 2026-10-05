@@ -1,13 +1,27 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FloatingTheo from "./components/FloatingTheo";
 import MemoPad from "./components/MemoPad";
 import Startup from "./components/Startup";
 import CalendarView from "./components/CalendarView";
 import ItemDetail from "./components/ItemDetail";
 import Collection from "./components/Collection";
+import BurstLayer from "./components/BurstLayer";
+import Settings from "./components/Settings";
+import TeoCompanion from "./components/TeoCompanion";
+import TeoSprite from "./components/TeoSprite";
+import { dayKey } from "./lib/dates";
+import { FACE } from "./lib/teoSprites";
+import {
+  burst,
+  feedback,
+  getFeedbackPrefs,
+  setFeedbackPrefs,
+  setFeedbackQuiet,
+} from "./lib/feedback";
 import {
   createItemRemote,
+  deleteItemRemote,
   loadItems,
   loadItemsRemote,
   saveItems,
@@ -28,12 +42,26 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [accepted, setAccepted] = useState("");
   const [swipePreview, setSwipePreview] = useState<ItemType | null>(null);
+  const [swipeReady, setSwipeReady] = useState(false);
+  const swipeReadyRef = useRef(false);
+  const [cheerKey, setCheerKey] = useState(0);
+  // Set by the widget "＋" link: the Note list opens with its composer already unfolded.
+  const [pendingCompose, setPendingCompose] = useState<string | null>(null);
+  const [landed, setLanded] = useState<Record<string, number>>({});
+  const [prefs, setPrefs] = useState(getFeedbackPrefs);
   const [screen, setScreen] = useState("");
   const routeStack = useRef<Array<{ screen: string; selectedId: string | null }>>([
     { screen: "", selectedId: null },
   ]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Mirrors the committed route so repeated widget deep links do not stack duplicate history entries.
+  const screenRef = useRef(screen);
+  const selectedRef = useRef<string | null>(selectedId);
+  screenRef.current = screen;
+  selectedRef.current = selectedId;
   function navigate(nextScreen: string) {
+    screenRef.current = nextScreen;
+    selectedRef.current = null;
     routeStack.current.push({ screen: nextScreen, selectedId: null });
     window.history.pushState({ theoRoute: nextScreen, selectedId: null }, "", window.location.href);
     setSelectedId(null);
@@ -72,6 +100,22 @@ export default function App() {
   const [origin, setOrigin] = useState("50% 87%");
   const toastTimer = useRef<number>();
   const noMotion = quiet || Boolean(reduce);
+  useEffect(() => setFeedbackQuiet(noMotion), [noMotion]);
+  const handleSwipe = useCallback((type: ItemType | null, progress: number) => {
+    stage.current?.style.setProperty("--swipe", progress.toFixed(3));
+    setSwipePreview(type);
+    const ready = type !== null && progress >= 1;
+    if (ready !== swipeReadyRef.current) {
+      swipeReadyRef.current = ready;
+      setSwipeReady(ready);
+      if (ready) feedback.ready();
+    }
+  }, []);
+  useEffect(() => {
+    const onCheer = () => setCheerKey((key) => key + 1);
+    window.addEventListener("teo-cheer", onCheer);
+    return () => window.removeEventListener("teo-cheer", onCheer);
+  }, []);
   const expanded =
     layout === "expanded" ||
     (layout === "auto" && size.w >= 680 && size.w / size.h > 0.78);
@@ -209,6 +253,13 @@ export default function App() {
       setItems((prev) => [item, ...prev]);
       setSync("동기화됨");
       setAccepted(type);
+      setLanded((prev) => ({ ...prev, [type]: (prev[type] || 0) + 1 }));
+      const icon = stage.current
+        ?.querySelector(`[data-target="${type}"]`)
+        ?.getBoundingClientRect();
+      if (icon) burst(type, icon.left + icon.width / 2, icon.top + icon.height * 0.42);
+      feedback.land();
+      setCheerKey((key) => key + 1);
       notify(
         type === "note"
           ? "노트에 메모가 등록되었습니다."
@@ -236,6 +287,26 @@ export default function App() {
       pending.current--;
     }
   }
+  async function deleteForever(ids: string[]): Promise<string[]> {
+    pending.current++;
+    revision.current++;
+    try {
+      const outcomes = await Promise.all(
+        ids.map(async (id) => ({ id, ok: await deleteItemRemote(id) })),
+      );
+      const removed = outcomes.filter((o) => o.ok).map((o) => o.id);
+      if (removed.length)
+        setItems((prev) => prev.filter((i) => !removed.includes(i.id)));
+      notify(
+        removed.length === ids.length
+          ? `${removed.length}개를 영구 삭제했어요.`
+          : "일부 항목을 삭제하지 못했어요. 연결을 확인해주세요.",
+      );
+      return removed;
+    } finally {
+      pending.current--;
+    }
+  }
   function openCalendar() {
     const a = stage.current?.getBoundingClientRect(),
       b = stage.current
@@ -247,21 +318,87 @@ export default function App() {
   }
   useEffect(() => {
     const openFromWidget = (event: Event) => {
-      const mode = (event as CustomEvent<string>).detail;
+      const link = (event as CustomEvent<string>).detail;
+      if (!["calendar", "note", "task", "todo", "new-note"].includes(link)) return;
+      // Opened from a widget: skip the launch animation and go straight to the destination.
+      setIntro(false);
+      const mode = link === "new-note" ? "note" : link;
+      if (link === "new-note") setPendingCompose("note");
+      // The Android shell re-sends the link a few times while the page loads; one visit is enough.
+      if (screenRef.current === mode) {
+        if (selectedRef.current) window.history.back();
+        return;
+      }
       if (mode === "calendar") openCalendar();
-      else if (["note", "task", "todo"].includes(mode)) openCollection(mode);
+      else openCollection(mode);
     };
     window.addEventListener("theo-widget-open", openFromWidget);
     return () => window.removeEventListener("theo-widget-open", openFromWidget);
   }, []);
   const selected = items.find((i) => i.id === selectedId);
   const visible = items.filter((i) => !i.deletedAt);
+  const stats = useMemo(() => {
+    const today = dayKey();
+    const live = items.filter((i) => !i.deletedAt);
+    const entries = live.flatMap((item) =>
+      item.type === "note"
+        ? []
+        : [
+            { start: item.startDate, end: item.dueDate || item.startDate, done: item.completed },
+            ...(item.type === "todo" ? item.subtasks || [] : []).map((sub) => ({
+              start: sub.startDate || item.startDate,
+              end: sub.dueDate || sub.startDate || item.startDate,
+              done: sub.completed,
+            })),
+          ],
+    );
+    const onToday = entries.filter((e) => e.start && e.start <= today && today <= e.end);
+    return {
+      note: live.filter((i) => i.type === "note").length,
+      todo: live.filter((i) => i.type === "todo" && !i.completed).length,
+      task:
+        live.filter((i) => i.type === "task" && !i.completed).length +
+        live.reduce(
+          (n, i) => n + (i.type === "todo" ? (i.subtasks || []).filter((t) => !t.completed).length : 0),
+          0,
+        ),
+      today: onToday.filter((e) => !e.done).length,
+      todayDone: onToday.filter((e) => e.done).length,
+      todayTotal: onToday.length,
+    };
+  }, [items]);
+  const meter = useRef<{ done: number; total: number } | null>(null);
+  useEffect(() => {
+    const previous = meter.current;
+    meter.current = { done: stats.todayDone, total: stats.todayTotal };
+    if (!previous || previous.total === 0 || stats.todayTotal === 0) return;
+    const finished = stats.todayDone === stats.todayTotal && previous.done < previous.total;
+    const key = `teo-all-done-${dayKey()}`;
+    let seen = false;
+    try {
+      seen = localStorage.getItem(key) === "1";
+    } catch {
+      /* storage unavailable */
+    }
+    if (!finished || seen) return;
+    try {
+      localStorage.setItem(key, "1");
+    } catch {
+      /* storage unavailable */
+    }
+    const box = stage.current?.querySelector(".today-meter")?.getBoundingClientRect();
+    if (box) burst("done", box.left + box.width / 2, box.top);
+    feedback.done();
+    setCheerKey((k) => k + 1);
+    notify("오늘 할 일을 모두 끝냈어요! TEO가 신나요.");
+  }, [stats.todayDone, stats.todayTotal]);
   return (
     <main className="app-shell">
       <div
         ref={stage}
         style={{ height: viewportHeight }}
         data-swipe={swipePreview || undefined}
+        data-ready={swipeReady || undefined}
         className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""} ${intro && !introRevealed ? "intro-waiting" : ""}`}
       >
         <header className="utility-bar">
@@ -278,6 +415,8 @@ export default function App() {
             className="note-position"
             quiet={noMotion || intro}
             accepted={accepted === "note"}
+            pulse={landed.note || 0}
+            count={stats.note}
             onClick={() => openCollection("note")}
           />
           <FloatingTheo
@@ -286,6 +425,8 @@ export default function App() {
             className="task-position"
             quiet={noMotion || intro}
             accepted={accepted === "task"}
+            pulse={landed.task || 0}
+            count={stats.task}
             onClick={() => openCollection("task")}
           />
           <FloatingTheo
@@ -294,6 +435,8 @@ export default function App() {
             className="todo-position"
             quiet={noMotion || intro}
             accepted={accepted === "todo"}
+            pulse={landed.todo || 0}
+            count={stats.todo}
             onClick={() => openCollection("todo")}
           />
           <FloatingTheo
@@ -302,6 +445,7 @@ export default function App() {
             className="calendar-position"
             quiet={noMotion || intro}
             accepted={false}
+            count={stats.today}
             onClick={openCalendar}
           />
           {focused && (
@@ -321,11 +465,41 @@ export default function App() {
             onFocus={() => setFocused(true)}
             onBlurFocus={() => setFocused(false)}
             onRegister={register}
-            onSwipePreview={setSwipePreview}
+            onSwipePreview={handleSwipe}
             quiet={noMotion}
+            companion={
+              <TeoCompanion
+                active={!intro || introRevealed}
+                quiet={noMotion}
+                look={swipePreview}
+                ready={swipeReady}
+                cheerKey={cheerKey}
+              />
+            }
           />
         </div>
-        <footer className="home-caption">적고, 가볍게 보내세요.</footer>
+        <footer className="home-caption">
+          {stats.todayTotal > 0 ? (
+            <span
+              className={`today-meter ${stats.todayDone === stats.todayTotal ? "is-complete" : ""}`}
+              role="progressbar"
+              aria-label="오늘 할 일"
+              aria-valuemin={0}
+              aria-valuemax={stats.todayTotal}
+              aria-valuenow={stats.todayDone}
+              aria-valuetext={`오늘 ${stats.todayTotal}개 중 ${stats.todayDone}개 완료`}
+            >
+              <span className="today-meter-track" aria-hidden="true">
+                <i style={{ width: `${(stats.todayDone / stats.todayTotal) * 100}%` }} />
+              </span>
+              <b>
+                오늘 {stats.todayDone}/{stats.todayTotal}
+              </b>
+            </span>
+          ) : (
+            "적고, 가볍게 보내세요."
+          )}
+        </footer>
         <AnimatePresence>
           {toast && (
             <motion.div
@@ -335,6 +509,12 @@ export default function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
             >
+              <span className="toast-teo" aria-hidden="true">
+                <TeoSprite
+                  cell={toast.includes("못했") ? FACE.surprised : accepted ? FACE.tongue : FACE.smile}
+                  size={52}
+                />
+              </span>
               {toast}
             </motion.div>
           )}
@@ -361,59 +541,33 @@ export default function App() {
               onClose={navigateBack}
               onSelect={selectItem}
               onSave={saveItem}
+              autoCompose={pendingCompose === screen}
+              onAutoComposed={() => setPendingCompose(null)}
+              onDeleteForever={deleteForever}
+              onNotify={notify}
               onCreate={(kind, draft) => register(kind as ItemType, draft)}
             />
           )}
           {screen === "settings" && (
-            <motion.section
-              className="panel settings-panel"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <header className="panel-header">
-                <button aria-label="설정 닫기" onClick={navigateBack}>
-                  ←
-                </button>
-                <h1>Setting</h1>
-              </header>
-              <label className="setting-row">
-                화면 배치
-                <select
-                  value={layout}
-                  onChange={(e) => setLayout(e.target.value)}
-                >
-                  <option value="auto">화면에 맞게 자동</option>
-                  <option value="folded">접힌 화면 · 십자형</option>
-                  <option value="expanded">펼친 화면 · 넓은 십자형</option>
-                </select>
-              </label>
-              <label className="setting-row">
-                움직임 줄이기
-                <input
-                  type="checkbox"
-                  checked={quiet}
-                  onChange={(e) => setQuiet(e.target.checked)}
-                />
-              </label>
-              <p>데이터 상태: {sync}</p>
-              <p className="muted">
-                위 Todo는 프로젝트 역할을 하며 내부에 Task를 추가할 수 있어요.
-                캘린더에는 Todo와 Task만 나타납니다. Note는 폴더로 분류할 수
-                있어요.
-              </p>
-              <button
-                className="secondary-btn"
-                onClick={() => {
-                  navigateBack();
-                  setFocused(false);
-                  setIntroRevealed(false);
-                  setIntro(true);
-                }}
-              >
-                시작 애니메이션 다시 보기
-              </button>
-            </motion.section>
+            <Settings
+              layout={layout}
+              onLayout={setLayout}
+              quiet={quiet}
+              onQuiet={setQuiet}
+              prefs={prefs}
+              onPrefs={(next) => {
+                setPrefs(next);
+                setFeedbackPrefs(next);
+              }}
+              sync={sync}
+              onBack={navigateBack}
+              onReplayIntro={() => {
+                navigateBack();
+                setFocused(false);
+                setIntroRevealed(false);
+                setIntro(true);
+              }}
+            />
           )}
           {selected && (
             <ItemDetail
@@ -434,6 +588,7 @@ export default function App() {
           )}
         </AnimatePresence>
       </div>
+      <BurstLayer quiet={noMotion} />
     </main>
   );
 }

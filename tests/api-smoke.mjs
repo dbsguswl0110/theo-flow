@@ -116,6 +116,63 @@ try {
   assert.equal((await request("/api/photos/" + photoId)).status, 200);
   assert.equal((await request("/api/photos/" + photoId, "DELETE")).status, 200);
   assert.equal((await request("/api/photos/" + photoId)).status, 404);
+  // The list is read in bulk: photos stay on their own note and subtasks on their own todo.
+  const pngForm = () => {
+    const form = new FormData();
+    form.append(
+      "photo",
+      new Blob(
+        [
+          Buffer.from(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=",
+            "base64",
+          ),
+        ],
+        { type: "image/png" },
+      ),
+      "bulk.png",
+    );
+    return form;
+  };
+  const staleNoteId = crypto.randomUUID();
+  const staleTodoId = crypto.randomUUID();
+  ids.push(staleNoteId, staleTodoId);
+  await request("/api/items", "POST", { ...item, id: staleNoteId, type: "note" });
+  await request("/api/items", "POST", {
+    ...item,
+    id: staleTodoId,
+    subTodos: ["a", "b"],
+  });
+  const staleUpload = await request(
+    "/api/items/" + staleNoteId + "/photos",
+    "POST",
+    pngForm(),
+  );
+  const { id: stalePhotoId } = await staleUpload.json();
+  all = await (await request("/api/items")).json();
+  const staleNote = all.find((i) => i.id === staleNoteId);
+  assert.deepEqual(
+    staleNote.photos.map((p) => Object.keys(p).sort()),
+    [["content_type", "file_name", "id"]],
+  );
+  assert.deepEqual(
+    all.find((i) => i.id === staleTodoId).subTodos.map((s) => s.title),
+    ["a", "b"],
+  );
+  assert.equal(all.find((i) => i.id === id).photos.length, 0);
+  // Trash older than three days is purged together with its photos and subtasks.
+  const longAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString();
+  for (const stale of [
+    { ...item, id: staleNoteId, type: "note" },
+    { ...item, id: staleTodoId },
+  ])
+    assert.equal(
+      (await request("/api/items/" + stale.id, "PUT", { ...stale, deletedAt: longAgo })).status,
+      200,
+    );
+  all = await (await request("/api/items")).json();
+  assert.equal(all.some((i) => i.id === staleNoteId || i.id === staleTodoId), false);
+  assert.equal((await request("/api/photos/" + stalePhotoId)).status, 404);
   console.log(
     "PASS local D1 create/update/subtodos/trash/restore/date validation; R2 upload/read/delete.",
   );

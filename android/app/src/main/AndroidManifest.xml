@@ -58,4 +58,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Haptic feedback when a memo lands or a task is checked off (normal permission, no prompt). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

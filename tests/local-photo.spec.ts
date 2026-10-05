@@ -9,7 +9,7 @@ test('local Worker note photos persist and disappear with removal', async ({ pag
     await expect(page.locator('.startup')).toHaveCount(0);
     await page.locator('[data-target="note"] button').click({force:true});
     await page.getByText('Photo UI QA '+id,{exact:true}).click();
-    await page.locator('input[type=file]').setInputFiles({name:'qa.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')});
+    await page.locator('.photo-section input[type=file]').setInputFiles({name:'qa.png',mimeType:'image/png',buffer:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=','base64')});
     await expect(page.locator('.photo-thumb img')).toBeVisible();
     await expect.poll(async()=>{const r=await request.get(base+'/api/items');return (await r.json()).find((i:any)=>i.id===id).photos.length}).toBe(1);
     await page.getByRole('button',{name:'사진 삭제'}).click();

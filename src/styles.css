@@ -513,114 +513,16 @@ p {
   padding: max(18px, env(safe-area-inset-top))
     max(18px, calc((100% - 960px) / 2)) max(24px, env(safe-area-inset-bottom));
 }
-.panel-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 50px;
-  margin-bottom: 22px;
-}
-.panel-header h1 {
-  flex: 1;
-  font-size: 20px;
-  font-weight: 550;
-  margin: 0;
-}
-.panel-header button {
-  background: #fff;
-  border-radius: 13px;
-  min-width: 40px;
-  height: 40px;
-  padding: 8px;
-  font-size: 14px;
-}
-.panel-header > span {
-  font-size: 13px;
-  color: #a88b73;
-}
 .muted {
   color: #ac9888;
   font-size: 12px;
   line-height: 1.7;
-}
-.empty-state {
-  text-align: center;
-  padding: 20vh 12px;
-  font-size: 17px;
-  line-height: 2;
-}
-.empty-state span {
-  font-size: 12px;
-  color: #ae9988;
-}
-.collection-card {
-  background: #fffdf9;
-  border: 1px solid #eee5da;
-  border-radius: 20px;
-  margin: 12px 0;
-  padding: 8px;
-  box-shadow: 0 4px 15px #76574105;
-}
-.collection-open {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: none;
-  text-align: left;
-  padding: 14px;
-}
-.collection-open strong {
-  font-size: 17px;
-}
-.collection-open span {
-  font-size: 13px;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.collection-open small {
-  font-size: 10px;
-  color: #a68b77;
-}
-.collection-subtasks {
-  padding: 0 14px 12px;
-  display: grid;
-  gap: 10px;
-  font-size: 13px;
-}
-.collection-subtasks label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 .secondary-btn {
   background: #ede4da;
   border-radius: 10px;
   padding: 10px 14px;
   font-size: 12px;
-}
-.setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 15px;
-  margin: 30px 0;
-  font-size: 14px;
-}
-.setting-row select {
-  max-width: 60%;
-  padding: 9px;
-  background: #fff;
-  border: 1px solid #e3d5c6;
-  border-radius: 10px;
-  font-size: 12px;
-}
-.settings-panel > p {
-  font-size: 13px;
-  line-height: 1.8;
 }
 .month-actions {
   display: flex;
@@ -638,114 +540,9 @@ p {
   color: #aa9280;
   padding: 12px 0;
 }
-.calendar-week {
-  min-height: 85px;
-  border-top: 1px solid #e7dfd5;
-  padding: 5px 0 9px;
-  background: repeating-linear-gradient(
-    90deg,
-    transparent 0 calc(100% / 7 - 1px),
-    #e8e0d755 calc(100% / 7 - 1px) calc(100% / 7)
-  );
-}
-.calendar-day {
-  padding: 0 4px;
-  font-size: 11px;
-}
-.calendar-day span {
-  display: inline-flex;
-  width: 24px;
-  height: 24px;
-  align-items: center;
-  justify-content: center;
-}
-.calendar-day .today {
-  background: #755540;
-  color: white;
-  border-radius: 50%;
-}
 .week-events {
   gap: 4px 0;
   margin-top: 5px;
-}
-.calendar-bar {
-  margin: 0 2px;
-  padding: 6px 5px;
-  min-width: 0;
-  text-align: left;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 10px;
-  color: #594638;
-  line-height: 1.3;
-  min-height: 26px;
-}
-.calendar-tabs {
-  display: flex;
-  gap: 5px;
-  width: fit-content;
-  margin: 20px auto 0;
-  position: sticky;
-  bottom: 0;
-  padding: 6px;
-  background: #fffffff0;
-  border: 1px solid #ebe2d9;
-  border-radius: 25px;
-  box-shadow: 0 7px 22px #76574116;
-}
-.calendar-tabs button {
-  padding: 10px 17px;
-  border-radius: 20px;
-  background: none;
-  font-size: 12px;
-}
-.calendar-tabs .active {
-  background: #785840;
-  color: white;
-}
-.detail-screen {
-  z-index: 70;
-  padding-left: max(20px, calc((100% - 640px) / 2));
-  padding-right: max(20px, calc((100% - 640px) / 2));
-}
-.detail-memo {
-  height: 430px;
-  min-height: 330px;
-  padding: 24px;
-  margin-bottom: 24px;
-}
-.detail-memo .memo-content {
-  font-size: 16px;
-}
-.detail-memo .memo-dates input,
-.detail-memo .memo-dates select {
-  font-size: 13px;
-  height: 40px;
-}
-.detail-memo input:disabled,
-.detail-memo textarea:disabled,
-.detail-memo select:disabled {
-  opacity: 1;
-  -webkit-text-fill-color: #634b3d;
-}
-.detail-memo .memo-title {
-  font-size: 28px;
-}
-.completion-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-}
-.subtask-editor,
-.photo-section {
-  margin: 26px 0;
-}
-.subtask-editor h2,
-.photo-section h2 {
-  font-size: 15px;
-  font-weight: 600;
 }
 .subtask-row {
   display: flex;
@@ -763,46 +560,6 @@ p {
 .subtask-row button {
   border-radius: 50%;
   background: #eee4d9;
-}
-.photo-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin: 15px 0;
-}
-.photo-thumb {
-  position: relative;
-  aspect-ratio: 1;
-  border-radius: 15px;
-  overflow: hidden;
-}
-.photo-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.photo-thumb button {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  border-radius: 50%;
-  background: #634b3ddb;
-  color: #fff;
-  width: 28px;
-  height: 28px;
-}
-.photo-add {
-  display: inline-block;
-  padding: 12px 16px;
-  border: 1px dashed #bb9e84;
-  border-radius: 13px;
-  font-size: 12px;
-  cursor: pointer;
-}
-.detail-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 25px;
 }
 input[type="checkbox"] {
   accent-color: #947256;
@@ -824,131 +581,131 @@ input[type="checkbox"] {
   padding: 12px;
 }
 @media (max-width: 359px) {
-  .theo-anchor {
+.theo-anchor {
     width: 52px;
   }
-  .theo-art {
+.theo-art {
     width: 45px;
     height: 48px;
   }
-  .memo-anchor {
+.memo-anchor {
     width: calc(100% - 120px);
   }
-  .memo-inner {
+.memo-inner {
     padding: 12px 10px;
   }
-  .memo-title {
+.memo-title {
     font-size: 21px;
   }
-  .memo-content {
+.memo-content {
     font-size: 12px;
   }
-  .memo-dates {
+.memo-dates {
     gap: 4px;
   }
-  .memo-dates input,
+.memo-dates input,
   .memo-dates select {
     font-size: 9px;
   }
-  .utility-bar {
+.utility-bar {
     padding-left: 14px;
     padding-right: 14px;
   }
 }
 @media (max-height: 650px) {
-  .spatial-home,
+.spatial-home,
   .expanded .spatial-home {
     inset: 66px 0 45px;
   }
-  .memo-anchor {
+.memo-anchor {
     height: 70%;
     max-height: none;
   }
-  .memo-inner {
+.memo-inner {
     gap: 6px;
     padding-top: 9px;
     padding-bottom: 9px;
   }
-  .memo-handle {
+.memo-handle {
     min-height: 20px;
   }
-  .home-caption {
+.home-caption {
     bottom: 10px;
   }
-  .theo-art {
+.theo-art {
     width: 42px;
     height: 43px;
   }
-  .theo-button {
+.theo-button {
     min-height: 58px;
   }
-  .expanded .theo-button {
+.expanded .theo-button {
     padding: 7px;
   }
-  .expanded .theo-art {
+.expanded .theo-art {
     width: 40px;
     height: 40px;
   }
-  .expanded .theo-anchor {
+.expanded .theo-anchor {
     width: 84px;
   }
-  .expanded .memo-inner {
+.expanded .memo-inner {
     padding: 14px;
     gap: 7px;
   }
-  .expanded .calendar-position {
+.expanded .calendar-position {
     top: 95%;
   }
-  .memo-anchor.is-focused {
+.memo-anchor.is-focused {
     height: 99%;
   }
-  .is-focused .memo-inner {
+.is-focused .memo-inner {
     padding: 12px;
     gap: 7px;
   }
-  .memo-dates input,
+.memo-dates input,
   .memo-dates select {
     padding: 5px;
     height: 30px;
     min-height: 30px;
   }
-  .home-caption span {
+.home-caption span {
     display: none;
   }
 }
 @media (max-height: 420px) {
-  .utility-bar {
+.utility-bar {
     padding-top: 10px;
   }
-  .wordmark small {
+.wordmark small {
     display: none;
   }
-  .spatial-home,
+.spatial-home,
   .expanded .spatial-home {
     inset: 44px 0 25px;
   }
-  .memo-handle {
+.memo-handle {
     min-height: 17px;
   }
-  .memo-title,
+.memo-title,
   .is-focused .memo-title {
     font-size: 20px;
   }
-  .done-editing {
+.done-editing {
     padding: 5px;
   }
-  .swipe-actions button {
+.swipe-actions button {
     padding: 4px;
   }
-  .memo-dates label {
+.memo-dates label {
     gap: 2px;
   }
-  .is-focused .memo-dates input,
+.is-focused .memo-dates input,
   .is-focused .memo-dates select {
     height: 30px;
     font-size: 11px;
   }
-  .home-caption {
+.home-caption {
     font-size: 9px;
     bottom: 5px;
   }
@@ -966,7 +723,7 @@ input[type="checkbox"] {
 }
 .expanded .calendar-position::before { left: -16px; right: -16px; border-radius: 18px; }
 @media (prefers-reduced-motion: reduce) {
-  *,
+*,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
