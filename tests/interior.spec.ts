@@ -235,6 +235,12 @@ test("the calendar speaks Korean, weeks are only as tall as their bars, and +n s
   ]);
   expect(Math.abs(moreBox!.y + moreBox!.height / 2 - (numBox!.y + numBox!.height / 2))).toBeLessThan(2);
 
-  // The chosen day is marked on its number only, not by tinting the whole cell.
-  await expect(page.locator(".cm-day.is-selected .cm-num")).toHaveCSS("box-shadow", /rgb/);
+  // Today is chosen at first: a red dot. Choosing another day moves a dark dot there and leaves today a plain red number.
+  const todayNum = page.locator(".cm-day.is-today .cm-num");
+  await expect(todayNum).toHaveCSS("background-color", "rgb(216, 73, 61)");
+  await page.locator(".cm-day:not(.is-today):not(.is-outside)").first().click();
+  await expect(todayNum).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(todayNum).toHaveCSS("color", "rgb(216, 73, 61)");
+  await expect(page.locator(".cm-day.is-selected .cm-num")).toHaveCSS("background-color", "rgb(95, 68, 55)");
+  await expect(page.locator(".cm-day.is-selected")).toHaveCount(1);
 });

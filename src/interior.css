@@ -1051,9 +1051,11 @@
 .cm-day.is-outside .cm-num {
   color: #bdae9f;
 }
-/* The chosen day is marked on its number only: a tinted cell would peek out around the bars. */
+/* Two quiet marks, both on the number only (a tinted cell would peek out around the bars):
+   today is a red number, the chosen day is a filled dot, and today when chosen is a red dot. */
 .cm-day.is-selected .cm-num {
-  box-shadow: 0 0 0 2px var(--ink);
+  background: var(--ink);
+  color: #fff;
 }
 .cm-day:active {
   background: #faf1e8;
@@ -1071,9 +1073,11 @@
   font-variant-numeric: tabular-nums;
 }
 .cm-day.is-today .cm-num {
+  color: #d8493d;
+}
+.cm-day.is-today.is-selected .cm-num {
   background: #d8493d;
   color: #fff;
-  animation: teo-count-pop 0.5s var(--teo-spring) both;
 }
 .cm-more {
   grid-row: 1;
