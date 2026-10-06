@@ -32,8 +32,10 @@ enum CalendarWords {
     }
 
     /// "오늘", "내일", "진행 중" or "10월 12일 (월)"; an item that lasts several days adds " → 10/15".
+    /// Something that should have been done by now says so: "기한 지남 · 10/3".
     static func when(_ item: CalendarItem, today: Date, calendar: Calendar = .current) -> String {
         let todayKey = CalendarMonth.dayKey(today, calendar: calendar)
+        if item.endDate < todayKey { return "기한 지남 · \(short(item.endDate))" }
         let tomorrow = calendar.date(byAdding: .day, value: 1, to: today) ?? today
         let start: String
         if item.startDate < todayKey {
@@ -51,6 +53,20 @@ enum CalendarWords {
             }
         }
         return item.endDate > item.startDate ? "\(start) → \(short(item.endDate))" : start
+    }
+
+    /// The panel's checklist: what is overdue first, then what is open from today on, then (optionally) what is done.
+    static func checklist(_ items: [CalendarItem], today: Date, includeCompleted: Bool, calendar: Calendar = .current) -> [CalendarItem] {
+        let todayKey = CalendarMonth.dayKey(today, calendar: calendar)
+        let overdue = items
+            .filter { !$0.completed && $0.endDate < todayKey }
+            .sorted { ($0.endDate, $0.title) < ($1.endDate, $1.title) }
+        let done = includeCompleted
+            ? items
+                .filter { $0.completed && $0.endDate >= todayKey }
+                .sorted { ($0.startDate, $0.title) < ($1.startDate, $1.title) }
+            : []
+        return overdue + upcoming(items, today: today, calendar: calendar) + done
     }
 
     /// One line for today: "오늘 · 장보기 외 3개".

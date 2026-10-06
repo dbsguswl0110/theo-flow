@@ -9,6 +9,10 @@ final class PanelStore: ObservableObject {
     @Published private(set) var syncFailed = false
     /// Nil until something has loaded in this run, so a failed first load never claims to show old data.
     @Published private(set) var lastSynced: Date?
+    /// True after a tick that could not be saved; cleared by the next one that is.
+    @Published private(set) var writeFailed = false
+    /// Items being saved right now, so a double click cannot send two updates.
+    @Published private(set) var saving: Set<String> = []
 
     private let refreshSeconds: UInt64 = 60
 
@@ -21,9 +25,32 @@ final class PanelStore: ObservableObject {
         }
     }
 
+    /// Ticks an item off (or back on). It shows at once, then the server's answer replaces the guess.
     @MainActor
-    func refresh() async {
-        guard !isLoading else { return }
+    func toggle(_ item: CalendarItem) async {
+        guard !saving.contains(item.id) else { return }
+        saving.insert(item.id)
+        defer { saving.remove(item.id) }
+        let target = !item.completed
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            items[index] = items[index].settingCompleted(target)
+        }
+        do {
+            try await TEOAPI.setCompleted(item, to: target)
+            writeFailed = false
+        } catch {
+            writeFailed = true
+            // Nothing was saved, so put the box back as it was even if the refresh below cannot reach the server either.
+            if let index = items.firstIndex(where: { $0.id == item.id }) {
+                items[index] = item
+            }
+        }
+        await refresh(force: true)
+    }
+
+    @MainActor
+    func refresh(force: Bool = false) async {
+        guard force || !isLoading else { return }
         isLoading = true
         defer { isLoading = false }
         do {

@@ -5,12 +5,14 @@ final class PanelStatusItem: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let panel: NSPanel
     private let completedItem: NSMenuItem
+    private let checklistItem: NSMenuItem
     private let floatingItem: NSMenuItem
     private let syncedItem: NSMenuItem
 
     init(panel: NSPanel) {
         self.panel = panel
         completedItem = NSMenuItem(title: "완료 항목 표시", action: #selector(PanelStatusItem.toggleCompleted), keyEquivalent: "")
+        checklistItem = NSMenuItem(title: "할 일 목록 표시", action: #selector(PanelStatusItem.toggleChecklist), keyEquivalent: "")
         floatingItem = NSMenuItem(title: "항상 위에 표시", action: #selector(PanelStatusItem.toggleFloating), keyEquivalent: "")
         syncedItem = NSMenuItem(title: "마지막 동기화 —", action: nil, keyEquivalent: "")
         super.init()
@@ -28,6 +30,8 @@ final class PanelStatusItem: NSObject, NSMenuDelegate {
         menu.addItem(item("새로고침", #selector(PanelStatusItem.refresh), key: "r"))
         completedItem.target = self
         menu.addItem(completedItem)
+        checklistItem.target = self
+        menu.addItem(checklistItem)
         floatingItem.target = self
         menu.addItem(floatingItem)
         menu.addItem(NSMenuItem.separator())
@@ -47,6 +51,7 @@ final class PanelStatusItem: NSObject, NSMenuDelegate {
     // The check marks and the sync time are refreshed each time the menu opens.
     func menuWillOpen(_ menu: NSMenu) {
         completedItem.state = PanelPreferences.showCompleted ? .on : .off
+        checklistItem.state = PanelPreferences.showChecklist ? .on : .off
         floatingItem.state = panel.level == .floating ? .on : .off
         let time = PanelPreferences.lastSynced?.formatted(date: .omitted, time: .shortened) ?? "—"
         syncedItem.title = "마지막 동기화 \(time)"
@@ -66,6 +71,10 @@ final class PanelStatusItem: NSObject, NSMenuDelegate {
 
     @objc private func toggleCompleted() {
         PanelPreferences.showCompleted.toggle()
+    }
+
+    @objc private func toggleChecklist() {
+        PanelPreferences.showChecklist.toggle()
     }
 
     @objc private func toggleFloating() {
