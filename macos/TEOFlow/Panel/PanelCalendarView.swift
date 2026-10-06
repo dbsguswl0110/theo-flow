@@ -13,8 +13,8 @@ private struct PanelMetrics {
     var dayFont: CGFloat { compact ? 10 : 12 }
     var smallFont: CGFloat { compact ? 8 : 9 }
     var cellInset: CGFloat { compact ? 4 : 6 }
-    /// Room for the day number above the bars.
-    var headHeight: CGFloat { compact ? 16 : 19 }
+    /// Room for the day number above the bars: its line, the inset above it and a hair of air.
+    var headHeight: CGFloat { dayFont * 1.2 + cellInset + 2 }
     var barHeight: CGFloat { compact ? 10 : 12 }
     var barCorner: CGFloat { compact ? 5 : 6 }
     var laneStep: CGFloat { barHeight + 2 }
@@ -60,7 +60,8 @@ struct PanelCalendarView: View {
 
     private func header(_ m: PanelMetrics) -> some View {
         HStack(spacing: 8) {
-            Text(month, format: .dateTime.month(.wide).year())
+            // Written out so the title is Korean whatever language the Mac is set to, like the widget and the app.
+            Text("\(calendar.component(.year, from: month))년 \(calendar.component(.month, from: month))월")
                 .font(.system(size: m.monthFont, weight: .bold, design: .rounded))
                 .foregroundStyle(TEOPalette.ink)
                 .lineLimit(1)
@@ -118,10 +119,10 @@ struct PanelCalendarView: View {
 
     private func weekdayRow(_ m: PanelMetrics) -> some View {
         HStack(spacing: m.gap) {
-            ForEach(["월", "화", "수", "목", "금", "토", "일"], id: \.self) { day in
+            ForEach(Array(CalendarWords.weekdays.enumerated()), id: \.offset) { index, day in
                 Text(day)
                     .font(.system(size: m.weekdayFont, weight: .semibold, design: .rounded))
-                    .foregroundStyle(TEOPalette.muted.opacity(0.7))
+                    .foregroundStyle(index == 6 ? TEOPalette.today.opacity(0.75) : TEOPalette.muted.opacity(0.7))
                     .frame(maxWidth: .infinity)
             }
         }
