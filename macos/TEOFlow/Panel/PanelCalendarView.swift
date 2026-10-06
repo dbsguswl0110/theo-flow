@@ -194,13 +194,8 @@ struct PanelCalendarView: View {
                 }
             }
         }
+        // Today is only a bold red number, the same quiet mark as the web calendar; no box around the cell.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .overlay {
-            if isToday {
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(TEOPalette.today.opacity(0.45), lineWidth: 1.2)
-            }
-        }
     }
 
     /// Items with a due date are bars; items without one are a dot and a title.

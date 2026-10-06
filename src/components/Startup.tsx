@@ -17,13 +17,56 @@ type Geometry = {
   targets: Destination[];
 };
 const kinds = ["todo", "note", "task", "calendar"];
-// Monotonic easing: a drop never travels past its final home-screen position.
+
+// The launch is one timeline in seconds: a drop falls and lands as a pearl, then the pearl lets go of one bead
+// per destination, each bead swinging into place. The only thing that changes the length is DURATION.
+const DURATION = 2.8;
+const FALL_START = 0.05;
+const IMPACT = 0.62; // the drop touches down
+const BEAD_START = 1.25; // the first bead leaves the pearl
+const STAGGER = 0.07; // gap between one bead leaving and the next
+const FLIGHT = 0.85;
+const LAST_LAND = BEAD_START + STAGGER * (kinds.length - 1) + FLIGHT;
+const SEED_R = 38; // radius of the resting pearl
+const ARC = 0.2; // how far a bead's path bows out, as a share of its length
+
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+// Monotonic easing: a bead never travels past its final home-screen position.
 const ease = (value: number) => {
-  const t = Math.max(0, Math.min(1, value));
+  const t = clamp01(value);
   return t * t * t * (t * (t * 6 - 15) + 10);
 };
-const between = (p: number, from: number, to: number) =>
-  ease((p - from) / (to - from));
+const easeOut = (value: number) => 1 - Math.pow(1 - clamp01(value), 3);
+// 0 before `from`, 1 after `to`, smooth in between (times in seconds).
+const span = (s: number, from: number, to: number) => clamp01((s - from) / (to - from));
+const between = (s: number, from: number, to: number) => ease(span(s, from, to));
+
+/** The drop and pearl that start the launch: it falls, squashes on landing, springs back and swells. */
+function seedShape(s: number, restY: number, fall: number) {
+  const u = span(s, FALL_START, IMPACT);
+  const fallR = 12 + 4 * u;
+  const dropRx = fallR * 0.86;
+  const dropRy = fallR * 1.22;
+
+  const since = Math.max(0, s - IMPACT);
+  const swell = between(s, IMPACT, IMPACT + 0.55);
+  // The pearl hands itself over to the beads, so it shrinks away as they leave.
+  const gather = between(s, BEAD_START + 0.05, BEAD_START + 0.75);
+  const base = (16 + (SEED_R - 16) * swell) * (1 - gather);
+  const wobble = Math.exp(-6 * since) * Math.cos(Math.PI * 2 * 2.4 * since);
+  // It crouches a little just before the first bead leaves.
+  const crouch = 0.1 * Math.sin(Math.PI * span(s, BEAD_START - 0.18, BEAD_START));
+  const pearlRx = base * (1 + 0.34 * wobble + crouch * 0.6);
+  const pearlRy = base * (1 - 0.34 * wobble - crouch);
+
+  const landed = between(s, IMPACT - 0.04, IMPACT + 0.03);
+  const rx = dropRx + (pearlRx - dropRx) * landed;
+  const ry = dropRy + (pearlRy - dropRy) * landed;
+  // The pearl sits on the ground, so squashing it moves its centre down; gravity pulls the drop in before that.
+  const ground = restY + SEED_R;
+  const y = (ground - ry) * (1 - gather) + restY * gather - fall * (1 - u * u);
+  return { rx, ry, y, swell, ground };
+}
 
 function Drop({
   progress,
@@ -36,27 +79,46 @@ function Drop({
   target: Destination;
   index: number;
 }) {
-  const travel = (p: number) =>
-    between(p, 0.31 + index * 0.014, 0.745 + index * 0.012);
-  const x = useTransform(
-    progress,
-    (p) => source.x + (target.x - source.x) * travel(p),
-  );
-  const y = useTransform(
-    progress,
-    (p) => source.y + (target.y - source.y) * travel(p),
-  );
-  const radius = (p: number) => 28 + (target.radius - 28) * travel(p);
-  const dx = target.x - source.x,
-    dy = target.y - source.y;
-  const horizontal = (dx * dx) / Math.max(1, dx * dx + dy * dy);
-  const stretch = (p: number) =>
-    1 + 0.3 * (horizontal * 2 - 1) * Math.sin(Math.PI * travel(p));
+  const start = BEAD_START + index * STAGGER;
+  const end = start + FLIGHT;
+  const dx = target.x - source.x;
+  const dy = target.y - source.y;
+  // Every bead bows the same way, so the four of them swirl out like a pinwheel instead of flying in straight lines.
+  const bowX = (source.x + target.x) / 2 - dy * ARC;
+  const bowY = (source.y + target.y) / 2 + dx * ARC;
+  const flight = (p: number) => span(p * DURATION, start, end);
+  // Peels away from the pearl, picks up speed, then slows into place.
+  const travel = (p: number) => {
+    const u = flight(p);
+    return 0.45 * easeOut(u) + 0.55 * ease(u);
+  };
+  const point = (p: number) => {
+    const t = travel(p);
+    const m = 1 - t;
+    return {
+      x: m * m * source.x + 2 * m * t * bowX + t * t * target.x,
+      y: m * m * source.y + 2 * m * t * bowY + t * t * target.y,
+    };
+  };
+  const x = useTransform(progress, (p) => point(p).x);
+  const y = useTransform(progress, (p) => point(p).y);
+  const radius = (p: number) => 26 + (target.radius - 26) * travel(p);
+  // Stretch along the way it is heading, ease off, then squash a touch as it lands.
+  const stretch = (p: number) => {
+    const t = travel(p);
+    const m = 1 - t;
+    const vx = 2 * m * (bowX - source.x) + 2 * t * (target.x - bowX);
+    const vy = 2 * m * (bowY - source.y) + 2 * t * (target.y - bowY);
+    const horizontal = (vx * vx) / Math.max(1, vx * vx + vy * vy);
+    const u = flight(p);
+    const amount = 0.24 * Math.sin(Math.PI * Math.pow(u, 0.55)) - 0.1 * Math.sin(Math.PI * span(u, 0.85, 1));
+    return 1 + amount * (horizontal * 2 - 1);
+  };
   const rx = useTransform(progress, (p) => radius(p) * stretch(p));
   const ry = useTransform(progress, (p) => radius(p) / stretch(p));
   const opacity = useTransform(
     progress,
-    (p) => between(p, 0.285, 0.33) * (1 - between(p, 0.79, 0.955)),
+    (p) => between(p * DURATION, start - 0.02, start + 0.1) * (1 - between(p * DURATION, end, end + 0.3)),
   );
   return (
     <motion.g
@@ -155,10 +217,11 @@ export default function Startup({
     let revealed = false;
     progress.set(0);
     const playback = animate(progress, 1, {
-      duration: 3.15,
+      duration: DURATION,
       ease: "linear",
       onUpdate: (value) => {
-        if (!revealed && value >= 0.785) {
+        // The home screen is handed over once the last bead has landed on its icon.
+        if (!revealed && value * DURATION >= LAST_LAND) {
           revealed = true;
           onReveal();
         }
@@ -168,44 +231,35 @@ export default function Startup({
     return () => playback.stop();
   }, [artReady, measured, quiet, onReveal, onDone, progress]);
 
-  const veil = useTransform(progress, (p) => 1 - between(p, 0.765, 0.925));
-  const seedRadius = useTransform(
+  const veil = useTransform(
     progress,
-    (p) => 37 * between(p, 0.015, 0.16) * (1 - between(p, 0.34, 0.55)),
+    (p) => 1 - between(p * DURATION, LAST_LAND - 0.3, LAST_LAND + 0.45),
   );
-  const seedY = useTransform(progress, (p) =>
-    geometry
-      ? geometry.source.y +
-        (geometry.height * 0.51 - geometry.source.y) *
-          (1 - between(p, 0.035, 0.3))
-      : 0,
-  );
-  const seedXRadius = useTransform(
-    [progress, seedRadius],
-    ([p, r]) =>
-      Number(r) *
-      (1 +
-        0.16 *
-          Math.sin((Number(p) / 0.3) * Math.PI * 2) *
-          (1 - between(Number(p), 0.1, 0.31))),
-  );
-  const seedYRadius = useTransform(
-    [progress, seedRadius],
-    ([p, r]) =>
-      Number(r) *
-      (1 -
-        0.13 *
-          Math.sin((Number(p) / 0.3) * Math.PI * 2) *
-          (1 - between(Number(p), 0.1, 0.31))),
-  );
+  const fall = geometry ? Math.min(220, geometry.height * 0.3) : 0;
+  const restY = geometry ? geometry.source.y : 0;
+  const seedY = useTransform(progress, (p) => seedShape(p * DURATION, restY, fall).y);
+  const seedXRadius = useTransform(progress, (p) => seedShape(p * DURATION, restY, fall).rx);
+  const seedYRadius = useTransform(progress, (p) => seedShape(p * DURATION, restY, fall).ry);
+  const seedOpacity = useTransform(progress, (p) => between(p * DURATION, 0, 0.14));
   const caption = useTransform(
     progress,
-    (p) => between(p, 0.1, 0.24) * (1 - between(p, 0.51, 0.68)),
+    (p) => between(p * DURATION, 0.7, 1.0) * (1 - between(p * DURATION, 1.55, 1.9)),
   );
+  // The shadow grows as the drop nears the ground and goes when the beads leave.
   const shadow = useTransform(
     progress,
-    (p) => 0.16 * between(p, 0.02, 0.16) * (1 - between(p, 0.23, 0.44)),
+    (p) =>
+      0.16 * between(p * DURATION, FALL_START, IMPACT) * (1 - between(p * DURATION, BEAD_START + 0.1, BEAD_START + 0.6)),
   );
+  const shadowRadius = useTransform(progress, (p) => {
+    const s = p * DURATION;
+    return 12 + 22 * Math.min(1, 0.4 * span(s, FALL_START, IMPACT) + 0.6 * seedShape(s, restY, fall).swell);
+  });
+  // One soft ring spreads across the ground where the drop lands.
+  const ring = useTransform(progress, (p) => span(p * DURATION, IMPACT, IMPACT + 0.75));
+  const ringRx = useTransform(ring, (t) => 10 + 100 * easeOut(t));
+  const ringRy = useTransform(ringRx, (r) => r * 0.24);
+  const ringOpacity = useTransform(ring, (t) => (t <= 0 || t >= 1 ? 0 : 0.5 * (1 - t)));
   return (
     <div
       className="startup launch"
@@ -254,12 +308,22 @@ export default function Startup({
           </defs>
           <motion.ellipse
             cx={geometry.source.x}
-            cy={geometry.height * 0.54}
-            rx="32"
+            cy={geometry.source.y + SEED_R + 6}
+            rx={shadowRadius}
             ry="6"
             fill="#a47b58"
             opacity={shadow}
             filter="url(#launch-soft-shadow)"
+          />
+          <motion.ellipse
+            cx={geometry.source.x}
+            cy={geometry.source.y + SEED_R + 2}
+            rx={ringRx}
+            ry={ringRy}
+            fill="none"
+            stroke="#c9a784"
+            strokeWidth="1.6"
+            opacity={ringOpacity}
           />
           <g filter="url(#launch-liquid-join)">
             <motion.ellipse
@@ -268,6 +332,7 @@ export default function Startup({
               rx={seedXRadius}
               ry={seedYRadius}
               fill="url(#launch-pearl)"
+              opacity={seedOpacity}
             />
             {geometry.targets.map((target, index) => (
               <Drop
