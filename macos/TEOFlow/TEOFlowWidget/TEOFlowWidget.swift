@@ -45,9 +45,9 @@ struct TEOFlowWidget: Widget {
             CalendarWidgetView(entry: entry)
                 .widgetURL(URL(string: "teoflow://calendar"))
         }
-        .configurationDisplayName("TEO Calendar")
-        .description("투명한 캘린더에서 오늘의 Todo와 Task를 확인하세요.")
-        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
+        .configurationDisplayName("TEO 캘린더")
+        .description("월간 달력과 다가오는 Todo, Task를 한눈에 확인하세요.")
+        .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
     }
 }
 
@@ -58,70 +58,115 @@ struct TEOFlowWidgetBundle: WidgetBundle {
     }
 }
 
+/// Small and medium show the month as dots; large and extra large write titles in the days.
+/// Medium and above add what is coming next, and extra large puts it beside the month like the Fold widget.
 struct CalendarWidgetView: View {
     let entry: TEOEntry
     @Environment(\.widgetFamily) private var family
 
     private let calendar = Calendar.current
-    private let weekdaySymbols = ["M", "T", "W", "T", "F", "S", "S"]
+
+    private var showsTitles: Bool { family == .systemLarge || family == .systemExtraLarge }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: family == .systemSmall ? 6 : 8) {
+        content
+            .padding(family == .systemSmall ? 10 : 14)
+            .containerBackground(for: .widget) {
+                ZStack {
+                    Color(red: 0.96, green: 0.91, blue: 0.86).opacity(0.72)
+                    Rectangle().fill(.ultraThinMaterial).opacity(0.78)
+                }
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.62), lineWidth: 1)
+            }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch family {
+        case .systemSmall:
+            month(spacing: 6)
+        case .systemMedium:
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 6) {
+                    agenda(limit: 2)
+                    Spacer(minLength: 0)
+                    quickLinks
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                month(spacing: 4)
+                    .frame(maxWidth: .infinity)
+            }
+        case .systemLarge:
+            VStack(alignment: .leading, spacing: 8) {
+                month(spacing: 8)
+                quickLinks
+                agenda(limit: 3)
+            }
+        default:
+            HStack(alignment: .top, spacing: 18) {
+                month(spacing: 8)
+                    .frame(maxWidth: .infinity)
+                VStack(alignment: .leading, spacing: 10) {
+                    quickLinks
+                    agenda(limit: 6)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        }
+    }
+
+    // MARK: Month
+
+    private func month(spacing: CGFloat) -> some View {
+        VStack(alignment: .leading, spacing: spacing) {
             header
             weekdayRow
             calendarGrid
-            // WidgetKit only supports Link in medium and large widgets; small ones just open the calendar.
-            if family != .systemSmall {
-                quickLinks
-            }
-            if family == .systemLarge {
-                agenda
-            }
-        }
-        .padding(family == .systemSmall ? 10 : 14)
-        .containerBackground(for: .widget) {
-            ZStack {
-                Color(red: 0.96, green: 0.91, blue: 0.86).opacity(0.72)
-                Rectangle().fill(.ultraThinMaterial).opacity(0.78)
-            }
-        }
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.62), lineWidth: 1)
         }
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(entry.date, format: .dateTime.month(.wide).year())
-                .font(.system(size: family == .systemSmall ? 13 : 16, weight: .bold, design: .rounded))
-                .foregroundStyle(Color(red: 0.32, green: 0.22, blue: 0.17))
+        let parts = calendar.dateComponents([.year, .month], from: entry.date)
+        return HStack(alignment: .firstTextBaseline) {
+            Text("\(parts.year ?? 0)년 \(parts.month ?? 0)월")
+                .font(.system(size: family == .systemSmall || family == .systemMedium ? 13 : 16, weight: .bold, design: .rounded))
+                .foregroundStyle(TEOPalette.ink)
             Spacer(minLength: 4)
             Text("TEO")
                 .font(.system(size: 9, weight: .bold, design: .rounded))
                 .tracking(1.2)
-                .foregroundStyle(Color(red: 0.46, green: 0.32, blue: 0.25).opacity(0.72))
+                .foregroundStyle(TEOPalette.muted.opacity(0.72))
         }
     }
 
     private var weekdayRow: some View {
-        LazyVGrid(columns: columns, spacing: 0) {
-            ForEach(weekdaySymbols, id: \.self) { day in
+        HStack(spacing: gap) {
+            // Index-based ids: the labels are unique now, but a position can never repeat.
+            ForEach(Array(CalendarWords.weekdays.enumerated()), id: \.offset) { index, day in
                 Text(day)
-                    .font(.system(size: 8, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Color(red: 0.46, green: 0.34, blue: 0.28).opacity(0.7))
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .foregroundStyle(index == 6 ? TEOPalette.today.opacity(0.8) : TEOPalette.muted.opacity(0.75))
                     .frame(maxWidth: .infinity)
             }
         }
     }
 
+    private var gap: CGFloat { family == .systemSmall || family == .systemMedium ? 2 : 3 }
+
     private var calendarGrid: some View {
-        LazyVGrid(columns: columns, spacing: family == .systemSmall ? 2 : 3) {
+        let columns = Array(repeating: GridItem(.flexible(), spacing: gap), count: 7)
+        return LazyVGrid(columns: columns, spacing: gap) {
             // Blank leading/trailing cells are all nil, so identify cells by position, not by value.
             ForEach(Array(CalendarMonth.days(of: entry.date).enumerated()), id: \.offset) { _, day in
                 dayCell(day)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(CalendarWords.describe(entry.items, today: entry.date))
     }
 
     private func dayCell(_ day: Date?) -> some View {
@@ -131,71 +176,110 @@ struct CalendarWidgetView: View {
             return item.startDate <= key && key <= item.endDate
         }
         let isToday = day.map { calendar.isDate($0, inSameDayAs: entry.date) } ?? false
+        let titleLines = family == .systemExtraLarge ? 3 : 2
         return VStack(alignment: .leading, spacing: 2) {
             if let day {
                 Text(day, format: .dateTime.day())
-                    .font(.system(size: family == .systemSmall ? 8 : 9, weight: isToday ? .bold : .medium, design: .rounded))
-                    .foregroundStyle(isToday ? Color(red: 0.78, green: 0.18, blue: 0.15) : Color(red: 0.40, green: 0.29, blue: 0.23).opacity(0.82))
+                    .font(.system(size: showsTitles ? 10 : 8.5, weight: isToday ? .bold : .medium, design: .rounded))
+                    .foregroundStyle(isToday ? TEOPalette.today : TEOPalette.inkSoft.opacity(0.85))
             } else {
-                Color.clear.frame(height: family == .systemSmall ? 9 : 10)
+                Color.clear.frame(height: showsTitles ? 11 : 9)
             }
-            if family == .systemSmall {
-                HStack(spacing: 2) {
-                    ForEach(Array(dayItems.prefix(3)), id: \.id) { item in
-                        Circle().fill(color(for: item)).frame(width: 3, height: 3)
+            if showsTitles {
+                VStack(alignment: .leading, spacing: 1) {
+                    ForEach(Array(dayItems.prefix(titleLines)), id: \.id) { item in
+                        HStack(spacing: 2) {
+                            Circle().fill(TEOPalette.color(for: item)).frame(width: 3, height: 3)
+                            Text(item.title)
+                                .font(.system(size: 7.5, weight: .medium, design: .rounded))
+                                .lineLimit(1)
+                                .foregroundStyle(TEOPalette.inkSoft.opacity(0.9))
+                        }
+                    }
+                    if dayItems.count > titleLines {
+                        Text("+\(dayItems.count - titleLines)")
+                            .font(.system(size: 7, weight: .bold, design: .rounded))
+                            .foregroundStyle(TEOPalette.accent.opacity(0.8))
                     }
                 }
             } else {
-                VStack(alignment: .leading, spacing: 1) {
-                    ForEach(Array(dayItems.prefix(family == .systemLarge ? 2 : 1)), id: \.id) { item in
-                        HStack(spacing: 2) {
-                            Circle().fill(color(for: item)).frame(width: 3, height: 3)
-                            Text(item.title)
-                                .font(.system(size: family == .systemLarge ? 7 : 6, weight: .medium, design: .rounded))
-                                .lineLimit(1)
-                                .foregroundStyle(Color(red: 0.35, green: 0.25, blue: 0.20).opacity(0.88))
-                        }
-                    }
-                    if dayItems.count > (family == .systemLarge ? 2 : 1) {
-                        Text("+\(dayItems.count - (family == .systemLarge ? 2 : 1))")
-                            .font(.system(size: 6, weight: .bold, design: .rounded))
-                            .foregroundStyle(Color(red: 0.50, green: 0.34, blue: 0.25).opacity(0.75))
+                HStack(spacing: 2) {
+                    ForEach(Array(dayItems.prefix(3)), id: \.id) { item in
+                        Circle().fill(TEOPalette.color(for: item)).frame(width: 3, height: 3)
                     }
                 }
             }
             Spacer(minLength: 0)
         }
         .padding(3)
-        .frame(maxWidth: .infinity, minHeight: family == .systemSmall ? 19 : (family == .systemLarge ? 38 : 27), alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: cellHeight, alignment: .topLeading)
         .background {
             RoundedRectangle(cornerRadius: 5, style: .continuous)
                 .fill(Color.white.opacity(dayItems.isEmpty ? 0.16 : 0.30))
         }
         .overlay(alignment: .bottomLeading) {
             if dayItems.contains(where: { $0.dueDate != nil && $0.dueDate != $0.startDate }) {
-                Rectangle().fill(Color(red: 0.72, green: 0.45, blue: 0.30).opacity(0.65)).frame(height: 1.5)
+                Rectangle().fill(TEOPalette.todo.opacity(0.55)).frame(height: 1.5)
             }
         }
     }
 
-    private var agenda: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Divider().overlay(Color.white.opacity(0.55))
-            Text("UP NEXT")
-                .font(.system(size: 8, weight: .bold, design: .rounded))
-                .tracking(1.2)
-                .foregroundStyle(Color(red: 0.46, green: 0.32, blue: 0.25).opacity(0.72))
-            ForEach(Array(entry.items.sorted { $0.startDate < $1.startDate }.prefix(3)), id: \.id) { item in
-                HStack(spacing: 5) {
-                    Circle().fill(color(for: item)).frame(width: 5, height: 5)
-                    Text(item.title).font(.system(size: 9, weight: .medium, design: .rounded)).lineLimit(1)
-                    Spacer(minLength: 2)
-                    Text(item.startDate).font(.system(size: 7, design: .rounded)).foregroundStyle(.secondary)
+    private var cellHeight: CGFloat {
+        switch family {
+        case .systemSmall: return 19
+        case .systemMedium: return 16
+        case .systemLarge: return 40
+        default: return 52
+        }
+    }
+
+    // MARK: Agenda and links
+
+    /// What is coming next, with the date in words; the same wording as the Android widget.
+    private func agenda(limit: Int) -> some View {
+        let all = CalendarWords.upcoming(entry.items, today: entry.date)
+        return VStack(alignment: .leading, spacing: 5) {
+            Text("다가오는 일정")
+                .font(.system(size: 9, weight: .bold, design: .rounded))
+                .tracking(0.6)
+                .foregroundStyle(TEOPalette.muted.opacity(0.8))
+            if all.isEmpty {
+                Text("예정된 일정이 없어요")
+                    .font(.system(size: 11, weight: .medium, design: .rounded))
+                    .foregroundStyle(TEOPalette.muted)
+            } else {
+                ForEach(Array(all.prefix(limit)), id: \.id) { item in
+                    agendaRow(item)
+                }
+                if all.count > limit {
+                    Text("외 \(all.count - limit)개")
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(TEOPalette.muted)
                 }
             }
         }
     }
 
+    private func agendaRow(_ item: CalendarItem) -> some View {
+        HStack(alignment: .top, spacing: 6) {
+            Circle()
+                .fill(TEOPalette.color(for: item))
+                .frame(width: 6, height: 6)
+                .padding(.top, 4)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.title)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(TEOPalette.ink)
+                    .lineLimit(1)
+                Text(CalendarWords.when(item, today: entry.date))
+                    .font(.system(size: 9, weight: .medium, design: .rounded))
+                    .foregroundStyle(TEOPalette.muted)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    // WidgetKit only supports Link in medium and larger widgets; small ones just open the calendar.
     private var quickLinks: some View {
         HStack(spacing: 5) {
             quickLink(title: "NOTE", systemName: "note.text", mode: "note")
@@ -215,7 +299,7 @@ struct CalendarWidgetView: View {
                     .font(.system(size: 8, weight: .bold, design: .rounded))
                     .tracking(0.4)
             }
-            .foregroundStyle(Color(red: 0.39, green: 0.27, blue: 0.21))
+            .foregroundStyle(TEOPalette.ink.opacity(0.9))
             .frame(maxWidth: .infinity, minHeight: 22)
             .background(Color.white.opacity(0.34), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .overlay {
@@ -224,13 +308,6 @@ struct CalendarWidgetView: View {
             }
         }
         .buttonStyle(.plain)
-    }
-
-    private var columns: [GridItem] {
-        Array(repeating: GridItem(.flexible(), spacing: family == .systemSmall ? 2 : 3), count: 7)
-    }
-
-    private func color(for item: CalendarItem) -> Color {
-        TEOPalette.color(for: item)
+        .accessibilityLabel(title == "＋" ? "새 노트 쓰기" : "\(title) 열기")
     }
 }
