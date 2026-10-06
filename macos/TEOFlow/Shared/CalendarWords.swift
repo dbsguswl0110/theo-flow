@@ -53,6 +53,14 @@ enum CalendarWords {
         return item.endDate > item.startDate ? "\(start) → \(short(item.endDate))" : start
     }
 
+    /// One line for today: "오늘 · 장보기 외 3개".
+    static func todaySummary(_ items: [CalendarItem], today: Date, calendar: Calendar = .current) -> String {
+        let todayKey = CalendarMonth.dayKey(today, calendar: calendar)
+        let open = items.filter { !$0.completed && $0.startDate <= todayKey && todayKey <= $0.endDate }
+        guard let first = open.first else { return "오늘 남은 일정이 없어요" }
+        return open.count == 1 ? "오늘 · \(first.title)" : "오늘 · \(first.title) 외 \(open.count - 1)개"
+    }
+
     /// What VoiceOver says for the month: the date and what is open today.
     static func describe(_ items: [CalendarItem], today: Date, calendar: Calendar = .current) -> String {
         let parts = calendar.dateComponents([.month, .day], from: today)

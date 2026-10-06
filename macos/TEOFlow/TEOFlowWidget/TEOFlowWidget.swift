@@ -103,7 +103,7 @@ struct CalendarWidgetView: View {
             VStack(alignment: .leading, spacing: 8) {
                 month(spacing: 8)
                 quickLinks
-                agenda(limit: 3)
+                todayLine
             }
         default:
             HStack(alignment: .top, spacing: 18) {
@@ -157,80 +157,87 @@ struct CalendarWidgetView: View {
 
     private var gap: CGFloat { family == .systemSmall || family == .systemMedium ? 2 : 3 }
 
+    /// The weeks share whatever height the widget has left, so a six-week month always fits;
+    /// each day then shows as much as its cell can hold (titles, or just a few dots).
     private var calendarGrid: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: gap), count: 7)
-        return LazyVGrid(columns: columns, spacing: gap) {
-            // Blank leading/trailing cells are all nil, so identify cells by position, not by value.
-            ForEach(Array(CalendarMonth.days(of: entry.date).enumerated()), id: \.offset) { _, day in
-                dayCell(day)
+        let weeks = CalendarMonth.weeks(of: entry.date)
+        return GeometryReader { geo in
+            let rows = CGFloat(weeks.count)
+            let rowHeight = max(10, (geo.size.height - gap * (rows - 1)) / rows)
+            VStack(spacing: gap) {
+                ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
+                    HStack(spacing: gap) {
+                        // Blank leading/trailing cells are nil, so identify columns by position.
+                        ForEach(0..<7, id: \.self) { col in
+                            dayCell(week[col], height: rowHeight)
+                        }
+                    }
+                    .frame(height: rowHeight)
+                }
             }
         }
+        .frame(maxHeight: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(CalendarWords.describe(entry.items, today: entry.date))
     }
 
-    private func dayCell(_ day: Date?) -> some View {
+    private func dayCell(_ day: Date?, height: CGFloat) -> some View {
+        let key = day.map { CalendarMonth.dayKey($0) }
         let dayItems = entry.items.filter { item in
-            guard let day else { return false }
-            let key = CalendarMonth.dayKey(day)
+            guard let key else { return false }
             return item.startDate <= key && key <= item.endDate
         }
         let isToday = day.map { calendar.isDate($0, inSameDayAs: entry.date) } ?? false
-        let titleLines = family == .systemExtraLarge ? 3 : 2
-        return VStack(alignment: .leading, spacing: 2) {
-            if let day {
-                Text(day, format: .dateTime.day())
-                    .font(.system(size: showsTitles ? 10 : 8.5, weight: isToday ? .bold : .medium, design: .rounded))
-                    .foregroundStyle(isToday ? TEOPalette.today : TEOPalette.inkSoft.opacity(0.85))
-            } else {
-                Color.clear.frame(height: showsTitles ? 11 : 9)
-            }
-            if showsTitles {
-                VStack(alignment: .leading, spacing: 1) {
-                    ForEach(Array(dayItems.prefix(titleLines)), id: \.id) { item in
-                        HStack(spacing: 2) {
-                            Circle().fill(TEOPalette.color(for: item)).frame(width: 3, height: 3)
-                            Text(item.title)
-                                .font(.system(size: 7.5, weight: .medium, design: .rounded))
-                                .lineLimit(1)
-                                .foregroundStyle(TEOPalette.inkSoft.opacity(0.9))
-                        }
-                    }
-                    if dayItems.count > titleLines {
-                        Text("+\(dayItems.count - titleLines)")
-                            .font(.system(size: 7, weight: .bold, design: .rounded))
-                            .foregroundStyle(TEOPalette.accent.opacity(0.8))
-                    }
+        let numberSize: CGFloat = showsTitles ? 10 : 8.5
+        // Room under the number: whole title lines in the big widgets, otherwise a few dots at the bottom edge.
+        let titleLines = showsTitles ? min(3, max(0, Int((height - 5 - (numberSize + 3)) / 10))) : 0
+        return VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 0) {
+                if let day {
+                    Text(day, format: .dateTime.day())
+                        .font(.system(size: numberSize, weight: isToday ? .bold : .medium, design: .rounded))
+                        .foregroundStyle(isToday ? TEOPalette.today : TEOPalette.inkSoft.opacity(0.85))
                 }
-            } else {
+                Spacer(minLength: 0)
+                if titleLines > 0 && dayItems.count > titleLines {
+                    Text("+\(dayItems.count - titleLines)")
+                        .font(.system(size: 7, weight: .bold, design: .rounded))
+                        .foregroundStyle(TEOPalette.accent.opacity(0.8))
+                }
+            }
+            ForEach(Array(dayItems.prefix(titleLines)), id: \.id) { item in
+                HStack(spacing: 2) {
+                    Circle().fill(TEOPalette.color(for: item)).frame(width: 3, height: 3)
+                    Text(item.title)
+                        .font(.system(size: 7.5, weight: .medium, design: .rounded))
+                        .lineLimit(1)
+                        .foregroundStyle(TEOPalette.inkSoft.opacity(0.9))
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(2.5)
+        .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
+        .background {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(Color.white.opacity(dayItems.isEmpty ? 0.16 : 0.30))
+        }
+        .overlay(alignment: .bottom) {
+            if titleLines == 0 && !dayItems.isEmpty {
                 HStack(spacing: 2) {
                     ForEach(Array(dayItems.prefix(3)), id: \.id) { item in
                         Circle().fill(TEOPalette.color(for: item)).frame(width: 3, height: 3)
                     }
                 }
+                .padding(.bottom, 1.5)
             }
-            Spacer(minLength: 0)
-        }
-        .padding(3)
-        .frame(maxWidth: .infinity, minHeight: cellHeight, alignment: .topLeading)
-        .background {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(Color.white.opacity(dayItems.isEmpty ? 0.16 : 0.30))
         }
         .overlay(alignment: .bottomLeading) {
             if dayItems.contains(where: { $0.dueDate != nil && $0.dueDate != $0.startDate }) {
                 Rectangle().fill(TEOPalette.todo.opacity(0.55)).frame(height: 1.5)
             }
         }
-    }
-
-    private var cellHeight: CGFloat {
-        switch family {
-        case .systemSmall: return 19
-        case .systemMedium: return 16
-        case .systemLarge: return 40
-        default: return 52
-        }
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
     }
 
     // MARK: Agenda and links
@@ -277,6 +284,13 @@ struct CalendarWidgetView: View {
                     .lineLimit(1)
             }
         }
+    }
+
+    private var todayLine: some View {
+        Text(CalendarWords.todaySummary(entry.items, today: entry.date))
+            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .foregroundStyle(TEOPalette.muted)
+            .lineLimit(1)
     }
 
     // WidgetKit only supports Link in medium and larger widgets; small ones just open the calendar.
