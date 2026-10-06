@@ -41,7 +41,14 @@ The browser caches the last synced records in localStorage and refreshes from th
 
 The repository includes a Capacitor Android shell under `android/`. The shell loads the public Cloudflare URL (`https://theo-flow.dbsguswl0110.workers.dev/`) instead of freezing a second copy of the web app inside the APK. This means normal UI/API releases deployed to Cloudflare are available in the installed app the next time it opens, without reinstalling the APK.
 
-The native shell now registers a Galaxy-compatible Android Home Screen widget. Its large/resizable layout shows open Todo/Task items on the left and the current month's calendar on the right; tapping it opens TEO. The widget reads `GET /api/items` directly and does not create a second widget database. It refreshes on the Android widget schedule and displays a small sync status. The app label and launcher artwork are TEO. Because the widget and launcher are native Android changes, this release requires installing the newly built APK once.
+The native shell registers one Android Home Screen widget, **TEO 캘린더**, built for a Galaxy Z Fold: it is a single bitmap painted by `CalendarPainter` for each size the launcher offers, so the cover screen and the opened inner screen each get their own layout. It reads `GET /api/items` directly and does not create a second widget database; it refreshes on the Android widget schedule, when the app is opened or left, and at midnight, and shows "동기화 대기" until the first sync.
+
+- **Month:** Korean weekday headings (Sunday in red), today as a bold red number, Todo in orange and Task in teal like the web calendar. Items are packed into lanes like the web calendar (`WeekLanes`), so items that do not overlap share a row; what does not fit is counted per day as "+n" under the bars. A very small widget shows up to three coloured dots per day instead of titles.
+- **Opened Fold (520 dp wide or more):** the month takes about 60 % and an agenda "다가오는 일정" sits beside it, listing open items from today with the date in words ("오늘", "내일", "10월 12일 (월) → 10/15", "진행 중 → 10/18"), plus "외 n개" when the list is longer.
+- **Tapping** opens the app on its calendar (`theo_open=calendar`). **TalkBack** reads the date and today's open items (`CalendarText.describe`), not just a label.
+- The former quick-link "memo" widget was removed; use the app for that. `CalendarData`, `CalendarText` and `WeekLanes` have no Android types and are covered by plain JVM unit tests (`./gradlew testDebugUnitTest`); the emulator test in CI renders the widget at several sizes.
+
+Because the widget is native code, a new APK has to be installed once to get it; web changes reach the app without that.
 
 ## macOS Calendar widget
 

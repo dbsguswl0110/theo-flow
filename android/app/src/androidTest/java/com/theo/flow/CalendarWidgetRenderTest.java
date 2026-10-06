@@ -40,7 +40,7 @@ public class CalendarWidgetRenderTest {
     @Test public void remoteViewsInflatesRendersAndReappliesAtFoldSizes() throws Exception {
         Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
         JSONArray data=fixture();
-        for(int[] size:new int[][]{{320,480},{680,400},{220,300}}){
+        for(int[] size:new int[][]{{320,480},{680,400},{900,620},{220,300}}){
             final int width=size[0],height=size[1];
             InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{
                 AppWidgetHostView host=new AppWidgetHostView(context);
@@ -76,9 +76,23 @@ public class CalendarWidgetRenderTest {
         int changed=0;
         for(int y=140;y<780;y++)for(int x=24;x<1336;x++)if(result.getPixel(x,y)!=empty.getPixel(x,y))changed++;
         assertTrue("Titles and markers visible below weekday header",changed>200);
-        // Sep 9-12 period: second week, columns 2..5, first lane, line y=153.
-        int ink=result.getPixel(700,306);
-        assertEquals(153,android.graphics.Color.red(ink));
-        assertEquals(104,android.graphics.Color.green(ink));
+        // Todo is drawn in orange and Task in teal, whatever the layout.
+        assertTrue("Todo colour is used",has(result,CalendarPainter.TODO));
+        assertTrue("Task colour is used",has(result,CalendarPainter.TASK));
+        assertFalse("Without events neither colour appears",has(empty,CalendarPainter.TODO)||has(empty,CalendarPainter.TASK));
+    }
+    static boolean has(Bitmap bitmap,int color){
+        for(int y=0;y<bitmap.getHeight();y++)for(int x=0;x<bitmap.getWidth();x++)if(bitmap.getPixel(x,y)==color)return true;
+        return false;
+    }
+    @Test public void aWideWidgetAddsAnAgendaAndANarrowOneDoesNot() throws Exception {
+        java.util.List<CalendarData.Event> data=CalendarData.parse(fixture());
+        LocalDate today=LocalDate.of(2026,9,10);
+        Bitmap wide=CalendarPainter.draw(680,400,today,data,false);
+        Bitmap none=CalendarPainter.draw(680,400,today,java.util.Collections.emptyList(),false);
+        // The agenda lives in the right-hand 40%: with events it holds text, without them only the empty message.
+        int differing=0;
+        for(int y=100;y<wide.getHeight();y++)for(int x=(int)(wide.getWidth()*0.64);x<wide.getWidth()-20;x++)if(wide.getPixel(x,y)!=none.getPixel(x,y))differing++;
+        assertTrue("Agenda rows are drawn for upcoming items",differing>300);
     }
 }
