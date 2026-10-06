@@ -60,15 +60,16 @@ public final class CalendarPainter {
                 c.drawText(label,left+col*(day+.5f)-text.measureText(label)/2,y+15,text);
             }
             text.setTypeface(Typeface.DEFAULT);
-            int capacity=(int)((row-20)/17);
-            if(capacity<1){drawDots(c,p,events,week,left,col,y,row);continue;}
+            int capacity=(int)((row-20)/16);
+            // Under about 48 dp a row cannot hold a title and its "+n", so a small widget shows dots instead.
+            if(row<48||capacity<1){drawDots(c,p,events,week,left,col,y,row);continue;}
             WeekLanes lanes=WeekLanes.layout(events,week,capacity);
             // A "+n" line needs room under the last bar, so a week that overflows gives one lane up for it.
-            int roomy=(int)((row-31)/17);
+            int roomy=(int)((row-30)/16);
             if(lanes.anyHidden()&&roomy>=1&&roomy<capacity)lanes=WeekLanes.layout(events,week,roomy);
             for(WeekLanes.Bar bar:lanes.bars){
                 CalendarData.Event event=bar.event;
-                float x1=left+bar.col*col+3,x2=left+(bar.col+bar.span)*col-3,ey=y+32+bar.lane*17;
+                float x1=left+bar.col*col+3,x2=left+(bar.col+bar.span)*col-3,ey=y+30+bar.lane*16;
                 // Todo is orange and Task is teal, as on the web calendar and the macOS panel.
                 p.setColor(event.task?TASK:TODO);p.setAlpha(event.completed?110:255);
                 if(event.due){p.setStrokeWidth(1.2f);c.drawLine(x1,ey+4,x2,ey+4,p);}

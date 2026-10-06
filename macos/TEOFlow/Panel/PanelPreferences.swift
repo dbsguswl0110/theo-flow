@@ -8,16 +8,28 @@ extension Notification.Name {
 /// The panel's remembered settings. The menu bar item writes them; the calendar view reads them.
 enum PanelPreferences {
     static let showCompletedKey = "panelShowCompleted"
+    static let showChecklistKey = "panelShowChecklist"
+    /// How much of the height under the header the calendar gets (the rest is the checklist). Dragged by the divider.
+    static let calendarShareKey = "panelCalendarShare"
+    static let defaultCalendarShare = 0.66
     static let frameName = "TEOCalendarPanel"
+    /// Bumped when the window's default layout changes, so an older saved window can be adjusted once.
+    static let layoutVersionKey = "panelLayoutVersion"
+    static let layoutVersion = 2
     private static let lastSyncedKey = "panelLastSynced"
 
     static func registerDefaults() {
-        UserDefaults.standard.register(defaults: [showCompletedKey: true])
+        UserDefaults.standard.register(defaults: [showCompletedKey: true, showChecklistKey: true, calendarShareKey: defaultCalendarShare])
     }
 
     static var showCompleted: Bool {
         get { UserDefaults.standard.bool(forKey: showCompletedKey) }
         set { UserDefaults.standard.set(newValue, forKey: showCompletedKey) }
+    }
+
+    static var showChecklist: Bool {
+        get { UserDefaults.standard.bool(forKey: showChecklistKey) }
+        set { UserDefaults.standard.set(newValue, forKey: showChecklistKey) }
     }
 
     /// When data last arrived from the server; nil if it never has.

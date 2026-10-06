@@ -13,12 +13,17 @@ private struct PanelMetrics {
     var dayFont: CGFloat { compact ? 10 : 12 }
     var smallFont: CGFloat { compact ? 8 : 9 }
     var cellInset: CGFloat { compact ? 4 : 6 }
-    /// Room for the day number above the bars.
-    var headHeight: CGFloat { compact ? 16 : 19 }
+    /// Room for the day number above the bars: its line, the inset above it and a hair of air.
+    var headHeight: CGFloat { dayFont * 1.2 + cellInset + 2 }
     var barHeight: CGFloat { compact ? 10 : 12 }
     var barCorner: CGFloat { compact ? 5 : 6 }
     var laneStep: CGFloat { barHeight + 2 }
     var rowBottom: CGFloat { compact ? 4 : 6 }
+    /// The least height the calendar can have: weekday labels and six rows that still show their day numbers.
+    var minCalendarHeight: CGFloat { weekdayFont * 1.3 + stackSpacing + 6 * headHeight + 5 * gap }
+    /// The least height the checklist can have: its title and about two rows.
+    var minChecklistHeight: CGFloat { 72 }
+    var handleHeight: CGFloat { 16 }
     var grip: CGSize { compact ? CGSize(width: 20, height: 22) : CGSize(width: 24, height: 26) }
 }
 
@@ -27,6 +32,8 @@ struct PanelCalendarView: View {
     @State private var month = Date()
     // Toggled from the menu bar item.
     @AppStorage(PanelPreferences.showCompletedKey) private var showCompleted = true
+    @AppStorage(PanelPreferences.showChecklistKey) private var showChecklist = true
+    @AppStorage(PanelPreferences.calendarShareKey) private var calendarShare = PanelPreferences.defaultCalendarShare
 
     private let calendar = Calendar.current
 
@@ -35,8 +42,7 @@ struct PanelCalendarView: View {
             let m = PanelMetrics(compact: proxy.size.width < 430)
             VStack(alignment: .leading, spacing: m.stackSpacing) {
                 header(m)
-                weekdayRow(m)
-                calendarGrid(m)
+                sections(m)
             }
             .padding(m.padding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -60,7 +66,8 @@ struct PanelCalendarView: View {
 
     private func header(_ m: PanelMetrics) -> some View {
         HStack(spacing: 8) {
-            Text(month, format: .dateTime.month(.wide).year())
+            // Written out so the title is Korean whatever language the Mac is set to, like the widget and the app.
+            Text("\(calendar.component(.year, from: month))년 \(calendar.component(.month, from: month))월")
                 .font(.system(size: m.monthFont, weight: .bold, design: .rounded))
                 .foregroundStyle(TEOPalette.ink)
                 .lineLimit(1)
@@ -91,9 +98,50 @@ struct PanelCalendarView: View {
         }
     }
 
+    /// The calendar on top and, under a draggable divider, the checklist. The share is remembered between launches.
+    private func sections(_ m: PanelMetrics) -> some View {
+        GeometryReader { geo in
+            let handle = showChecklist ? m.handleHeight : 0
+            let usable = max(1, geo.size.height - handle)
+            let low = Double(min(m.minCalendarHeight, usable) / usable)
+            let high = max(low, Double((usable - m.minChecklistHeight) / usable))
+            let share = showChecklist ? min(max(calendarShare, low), high) : 1.0
+            VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: m.stackSpacing) {
+                    weekdayRow(m)
+                    calendarGrid(m)
+                }
+                .frame(height: usable * CGFloat(share), alignment: .top)
+                if showChecklist {
+                    SplitHandle(
+                        share: $calendarShare,
+                        usable: usable,
+                        range: low...high,
+                        defaultShare: PanelPreferences.defaultCalendarShare
+                    )
+                    ChecklistView(
+                        items: CalendarWords.checklist(store.items, today: Date(), includeCompleted: showCompleted),
+                        today: Date(),
+                        compact: m.compact,
+                        saving: store.saving,
+                        onToggle: { item in Task { await store.toggle(item) } }
+                    )
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private func footer(_ m: PanelMetrics) -> some View {
-        if store.syncFailed {
+        if store.writeFailed {
+            Text("저장하지 못했어요 · 연결을 확인해 주세요")
+                .font(.system(size: m.compact ? 9 : 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(TEOPalette.ink)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 3)
+                .background(Color(red: 0.95, green: 0.87, blue: 0.72), in: Capsule())
+                .padding(.bottom, m.compact ? 8 : 12)
+        } else if store.syncFailed {
             Text(syncMessage)
                 .font(.system(size: m.compact ? 9 : 10, weight: .semibold, design: .rounded))
                 .foregroundStyle(TEOPalette.ink)
@@ -118,10 +166,10 @@ struct PanelCalendarView: View {
 
     private func weekdayRow(_ m: PanelMetrics) -> some View {
         HStack(spacing: m.gap) {
-            ForEach(["월", "화", "수", "목", "금", "토", "일"], id: \.self) { day in
+            ForEach(Array(CalendarWords.weekdays.enumerated()), id: \.offset) { index, day in
                 Text(day)
                     .font(.system(size: m.weekdayFont, weight: .semibold, design: .rounded))
-                    .foregroundStyle(TEOPalette.muted.opacity(0.7))
+                    .foregroundStyle(index == 6 ? TEOPalette.today.opacity(0.75) : TEOPalette.muted.opacity(0.7))
                     .frame(maxWidth: .infinity)
             }
         }
@@ -138,7 +186,7 @@ struct PanelCalendarView: View {
         return GeometryReader { geo in
             let rows = CGFloat(weeks.count)
             let rowHeight = max(1, (geo.size.height - m.gap * (rows - 1)) / rows)
-            let maxLanes = max(1, Int((rowHeight - m.headHeight - m.rowBottom) / m.laneStep))
+            let maxLanes = max(0, Int((rowHeight - m.headHeight - m.rowBottom) / m.laneStep))
             VStack(spacing: m.gap) {
                 // Blank leading and trailing cells are nil, so identify weeks by position, not by value.
                 ForEach(Array(weeks.enumerated()), id: \.offset) { _, week in
