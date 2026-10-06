@@ -5,11 +5,17 @@ import android.text.TextPaint;
 import android.text.TextUtils;
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-/** A single raster frame: no nested RemoteViews, weight, repeated ID or runtime view inflation. */
+/**
+ * A single raster frame: no nested RemoteViews, weight, repeated ID or runtime view inflation.
+ * A narrow widget is the month; a wide one (a Fold opened up) adds an agenda of what is coming next.
+ */
 public final class CalendarPainter {
+    static final int PAPER=Color.rgb(253,249,243),INK=Color.rgb(50,40,32),MUTED=Color.rgb(110,88,70),FAINT=Color.rgb(143,128,115),
+        LINE=Color.rgb(229,218,207),TODO=Color.rgb(200,105,61),TASK=Color.rgb(61,125,125),TODAY=Color.rgb(216,73,61),SUNDAY=Color.rgb(196,101,90);
+    private static final String[] DAYS={"월","화","수","목","금","토","일"};
+
     public static Bitmap draw(int width,int height,LocalDate today,List<CalendarData.Event> events,boolean pending) {
         return draw(width,height,today,events,pending,2f);
     }
@@ -18,57 +24,120 @@ public final class CalendarPainter {
         Bitmap bitmap=Bitmap.createBitmap(Math.max(1,Math.round(width*scale)),Math.max(1,Math.round(height*scale)),Bitmap.Config.ARGB_8888);
         Canvas c=new Canvas(bitmap);c.scale(scale,scale);
         Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(Color.rgb(253,249,243));
+        p.setColor(PAPER);
         c.drawRoundRect(0,0,width,height,20,20,p);
-        final float left=12,right=width-12,top=66,bottom=height-10,col=(right-left)/7,row=(bottom-top)/6;
-        TextPaint text=new TextPaint(Paint.ANTI_ALIAS_FLAG);text.setTypeface(Typeface.create("sans-serif",Typeface.NORMAL));
-        text.setColor(Color.rgb(50,40,32));text.setTextSize(20);text.setTypeface(Typeface.DEFAULT_BOLD);
-        c.drawText(today.getYear()+"년 "+today.getMonthValue()+"월",left,29,text);
-        text.setTypeface(Typeface.DEFAULT);text.setTextSize(14);
-        String[] headings={"M","T","W","T","F","S","S"};
-        for(int i=0;i<7;i++)c.drawText(headings[i],left+col*(i+.5f)-text.measureText(headings[i])/2,54,text);
+        TextPaint text=new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        boolean wide=CalendarText.isWide(width,height);
+        float monthRight=wide?Math.round(width*0.6f):width;
+        drawMonth(c,p,text,monthRight,height,today,events,pending);
+        if(wide)drawAgenda(c,p,text,monthRight,width,height,today,events);
+        return bitmap;
+    }
+
+    private static void drawMonth(Canvas c,Paint p,TextPaint text,float outer,int height,LocalDate today,List<CalendarData.Event> events,boolean pending) {
+        final float left=12,right=outer-12,top=70,bottom=height-10,col=(right-left)/7,row=(bottom-top)/6;
+        text.setTypeface(Typeface.DEFAULT_BOLD);text.setColor(INK);text.setTextSize(20);
+        c.drawText(today.getYear()+"년 "+today.getMonthValue()+"월",left,30,text);
+        text.setTypeface(Typeface.DEFAULT);text.setTextSize(12);
+        for(int i=0;i<7;i++){
+            text.setColor(i==6?SUNDAY:MUTED);
+            c.drawText(DAYS[i],left+col*(i+.5f)-text.measureText(DAYS[i])/2,58,text);
+        }
         YearMonth month=YearMonth.from(today);LocalDate first=CalendarData.first(month);
         // Delicate dividers are the calendar's boundaries, not extra blank panels.
-        p.setColor(Color.rgb(229,218,207));p.setStrokeWidth(.5f);
+        p.setColor(LINE);p.setAlpha(255);p.setStrokeWidth(.5f);
         for(int w=0;w<=6;w++)c.drawLine(left,top+w*row,right,top+w*row,p);
         for(int d=1;d<7;d++)c.drawLine(left+d*col,top,left+d*col,bottom,p);
         for(int w=0;w<6;w++) {
             LocalDate week=first.plusDays(w*7);float y=top+w*row;
-            text.setTextSize(10.5f);
+            text.setTextSize(12);
             for(int day=0;day<7;day++){
                 LocalDate date=week.plusDays(day);
-                text.setColor(date.equals(today)?Color.rgb(220,35,45):
-                    date.getMonthValue()==today.getMonthValue()?Color.BLACK:Color.rgb(161,150,142));
+                boolean isToday=date.equals(today);
+                text.setTypeface(isToday?Typeface.DEFAULT_BOLD:Typeface.DEFAULT);
+                text.setColor(isToday?TODAY:date.getMonthValue()==today.getMonthValue()?INK:FAINT);
                 String label=""+date.getDayOfMonth();
-                c.drawText(label,left+col*(day+.5f)-text.measureText(label)/2,y+14,text);
+                c.drawText(label,left+col*(day+.5f)-text.measureText(label)/2,y+15,text);
             }
-            List<CalendarData.Event> visible=CalendarData.week(events,week);
-            int capacity=Math.max(1,(int)((row-18)/17));
-            int shown=Math.min(visible.size(),capacity);
-            for(int lane=0;lane<shown;lane++){
-                CalendarData.Event event=visible.get(lane);
-                int start=(int)Math.max(0,ChronoUnit.DAYS.between(week,event.start));
-                int end=(int)Math.min(6,ChronoUnit.DAYS.between(week,event.end));
-                float x1=left+start*col+3,x2=left+(end+1)*col-3,ey=y+29+lane*17;
-                p.setColor(Color.rgb(153,104,71));p.setAlpha(event.completed?110:255);
+            text.setTypeface(Typeface.DEFAULT);
+            int capacity=(int)((row-20)/17);
+            if(capacity<1){drawDots(c,p,events,week,left,col,y,row);continue;}
+            WeekLanes lanes=WeekLanes.layout(events,week,capacity);
+            // A "+n" line needs room under the last bar, so a week that overflows gives one lane up for it.
+            int roomy=(int)((row-31)/17);
+            if(lanes.anyHidden()&&roomy>=1&&roomy<capacity)lanes=WeekLanes.layout(events,week,roomy);
+            for(WeekLanes.Bar bar:lanes.bars){
+                CalendarData.Event event=bar.event;
+                float x1=left+bar.col*col+3,x2=left+(bar.col+bar.span)*col-3,ey=y+32+bar.lane*17;
+                // Todo is orange and Task is teal, as on the web calendar and the macOS panel.
+                p.setColor(event.task?TASK:TODO);p.setAlpha(event.completed?110:255);
                 if(event.due){p.setStrokeWidth(1.2f);c.drawLine(x1,ey+4,x2,ey+4,p);}
                 else c.drawCircle(x1+2,ey-4,2,p);
-                text.setTextSize(11.5f);text.setColor(Color.rgb(55,42,33));text.setAlpha(event.completed?120:255);
+                text.setTextSize(11.5f);text.setColor(INK);text.setAlpha(event.completed?120:255);
                 float tx=x1+(event.due?0:7);
                 String label=TextUtils.ellipsize(event.title,text,Math.max(1,x2-tx),TextUtils.TruncateAt.END).toString();
-                c.save();c.clipRect(x1,y+17,x2,y+row-9);
+                c.save();c.clipRect(x1,y+19,x2,y+row-8);
                 c.drawText(label,tx,ey,text);c.restore();
             }
-            if(visible.size()>shown){
-                text.setAlpha(255);text.setTextSize(9);text.setColor(Color.rgb(119,90,68));
-                String more="+"+(visible.size()-shown);
-                c.drawText(more,right-text.measureText(more),y+14,text);
+            text.setAlpha(255);text.setTextSize(9.5f);text.setColor(MUTED);
+            for(int day=0;day<7;day++)if(lanes.hidden[day]>0){
+                String more="+"+lanes.hidden[day];
+                c.drawText(more,left+(day+1)*col-3-text.measureText(more),y+row-4,text);
             }
         }
         if(pending) {
-            text.setAlpha(255);text.setTextSize(9);text.setColor(Color.rgb(119,90,68));
+            text.setAlpha(255);text.setTextSize(11);text.setColor(MUTED);
             String message="동기화 대기";c.drawText(message,right-text.measureText(message),28,text);
         }
-        return bitmap;
+    }
+
+    /** Too short a row for titles (a small widget): one dot per item under the day number instead. */
+    private static void drawDots(Canvas c,Paint p,List<CalendarData.Event> events,LocalDate week,float left,float col,float y,float row) {
+        float dotY=Math.min(y+25,y+row-5);
+        for(int day=0;day<7;day++){
+            LocalDate date=week.plusDays(day);
+            int drawn=0;
+            for(CalendarData.Event event:events){
+                if(event.start.isAfter(date)||event.end.isBefore(date)||drawn>=3)continue;
+                p.setColor(event.task?TASK:TODO);p.setAlpha(event.completed?110:255);
+                c.drawCircle(left+col*(day+.5f)+(drawn-1)*6,dotY,2.2f,p);
+                drawn++;
+            }
+        }
+        p.setAlpha(255);
+    }
+
+    /** What is coming next, with the date in words: the part of the widget a Fold's big screen is for. */
+    private static void drawAgenda(Canvas c,Paint p,TextPaint text,float x0,int width,int height,LocalDate today,List<CalendarData.Event> events) {
+        final float left=x0+10,right=width-14,step=38;
+        p.setColor(LINE);p.setAlpha(255);p.setStrokeWidth(.5f);
+        c.drawLine(x0,18,x0,height-14,p);
+        text.setAlpha(255);text.setTypeface(Typeface.DEFAULT_BOLD);text.setTextSize(15);text.setColor(INK);
+        c.drawText("다가오는 일정",left+6,30,text);
+        float y=58;
+        int capacity=Math.max(1,(int)((height-14-y)/step));
+        List<CalendarData.Event> all=CalendarText.upcoming(events,today,Integer.MAX_VALUE);
+        if(all.isEmpty()){
+            text.setTypeface(Typeface.DEFAULT);text.setTextSize(13);text.setColor(MUTED);
+            c.drawText("예정된 일정이 없어요",left+6,y+14,text);
+            return;
+        }
+        int shown=Math.min(all.size(),all.size()>capacity?capacity-1:capacity);
+        shown=Math.max(1,shown);
+        for(int i=0;i<shown;i++){
+            CalendarData.Event event=all.get(i);
+            p.setColor(event.task?TASK:TODO);p.setAlpha(255);
+            c.drawCircle(left+10,y+9,4,p);
+            float tx=left+22;
+            text.setTypeface(Typeface.DEFAULT_BOLD);text.setTextSize(13.5f);text.setColor(INK);
+            c.drawText(TextUtils.ellipsize(event.title,text,Math.max(1,right-tx),TextUtils.TruncateAt.END).toString(),tx,y+13,text);
+            text.setTypeface(Typeface.DEFAULT);text.setTextSize(11.5f);text.setColor(MUTED);
+            c.drawText(TextUtils.ellipsize(CalendarText.when(event,today),text,Math.max(1,right-tx),TextUtils.TruncateAt.END).toString(),tx,y+29,text);
+            y+=step;
+        }
+        if(all.size()>shown){
+            text.setTypeface(Typeface.DEFAULT);text.setTextSize(11.5f);text.setColor(MUTED);
+            c.drawText("외 "+(all.size()-shown)+"개",left+22,y+13,text);
+        }
     }
 }

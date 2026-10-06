@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import type { CaptureItem } from "../types";
 import { dayKey } from "../lib/dates";
 import { celebrate } from "../lib/feedback";
@@ -55,13 +55,44 @@ const shortDate = (date: string) => {
 };
 const periodLabel = (item: CalendarEntry) =>
   item.dueDate && item.dueDate !== item.startDate ? ` · ${shortDate(item.startDate)} → ${shortDate(item.dueDate)}` : "";
-const MAX_LANES = 3;
+// How many bars fit under a day number before "+n": a roomy screen (a Fold opened up) shows one more.
+const COMPACT_LANES = 3;
+const WIDE_LANES = 4;
+const WIDE_QUERY = "(min-width: 680px)";
+const DAY_NAMES = ["일", "월", "화", "수", "목", "금", "토"];
+
+function useWide() {
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.matchMedia(WIDE_QUERY).matches);
+  useEffect(() => {
+    const query = window.matchMedia(WIDE_QUERY);
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return wide;
+}
+
+const shiftDay = (key: string, delta: number) => {
+  const date = new Date(`${key}T00:00:00`);
+  date.setDate(date.getDate() + delta);
+  return dayKey(date);
+};
+const shiftMonth = (key: string, delta: number) => {
+  const date = new Date(`${key}T00:00:00`);
+  const day = date.getDate();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + delta);
+  const last = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  date.setDate(Math.min(day, last));
+  return dayKey(date);
+};
 
 type Bar = { entry: CalendarEntry; col: number; span: number; lane: number; head: boolean; tail: boolean };
 type Week = { days: Date[]; bars: Bar[]; hidden: number[]; lanes: number };
 
 /** Lays each item across the weeks it covers as one continuous bar; items without a due date become dots. */
-function layoutWeeks(days: Date[], entries: CalendarEntry[]): Week[] {
+function layoutWeeks(days: Date[], entries: CalendarEntry[], maxLanes: number): Week[] {
   const weeks: Week[] = [];
   for (let w = 0; w * 7 < days.length; w++) {
     const weekDays = days.slice(w * 7, w * 7 + 7);
@@ -92,7 +123,7 @@ function layoutWeeks(days: Date[], entries: CalendarEntry[]): Week[] {
         lane = laneEnds.length;
         laneEnds.push(seg.col + seg.span - 1);
       } else laneEnds[lane] = seg.col + seg.span - 1;
-      if (lane >= MAX_LANES) for (let c = seg.col; c < seg.col + seg.span; c++) hidden[c]++;
+      if (lane >= maxLanes) for (let c = seg.col; c < seg.col + seg.span; c++) hidden[c]++;
       else bars.push({ ...seg, lane });
     }
     // A week is only as tall as the lanes it uses (at least one, so a day stays easy to tap).
@@ -144,7 +175,71 @@ export default function CalendarView({
       return date;
     });
   }, [month]);
-  const weeks = useMemo(() => layoutWeeks(days, calendarItems), [days, calendarItems]);
+  const wide = useWide();
+  const weeks = useMemo(
+    () => layoutWeeks(days, calendarItems, wide ? WIDE_LANES : COMPACT_LANES),
+    [days, calendarItems, wide],
+  );
+  // Every shown day knows how many items it holds, so a screen reader can say so without opening it.
+  const dayCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const keys = days.map(dayKey);
+    const first = keys[0];
+    const last = keys[keys.length - 1];
+    for (const entry of calendarItems) {
+      if (!entry.startDate) continue;
+      const end = entry.dueDate || entry.startDate;
+      if (entry.startDate > last || end < first) continue;
+      for (const key of keys) if (entry.startDate <= key && key <= end) counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return counts;
+  }, [days, calendarItems]);
+  // Roving focus: Tab stops on one day (the chosen one when it is on screen) and the arrow keys move between days.
+  const shownKeys = useMemo(() => new Set(days.map(dayKey)), [days]);
+  const monthStartKey = dayKey(new Date(month.getFullYear(), month.getMonth(), 1));
+  const focusKey = shownKeys.has(selectedDate) ? selectedDate : shownKeys.has(today) ? today : monthStartKey;
+  const gridRef = useRef<HTMLDivElement>(null);
+  const pendingFocus = useRef<string | null>(null);
+  useEffect(() => {
+    const key = pendingFocus.current;
+    if (!key) return;
+    pendingFocus.current = null;
+    gridRef.current?.querySelector<HTMLElement>(`.cm-day[data-date="${key}"]`)?.focus();
+  }, [selectedDate, month]);
+
+  const chooseDay = (key: string, moveFocus = false) => {
+    setSelectedDate(key);
+    setScope("date");
+    // A day outside the weeks on screen brings its month along.
+    if (!shownKeys.has(key)) {
+      const target = new Date(`${key}T00:00:00`);
+      setMonth(new Date(target.getFullYear(), target.getMonth(), 1));
+    }
+    if (!moveFocus) return;
+    const cell = gridRef.current?.querySelector<HTMLElement>(`.cm-day[data-date="${key}"]`);
+    if (cell) cell.focus();
+    else pendingFocus.current = key; // its month is not drawn yet
+  };
+  const onGridKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    const cell = (event.target as HTMLElement).closest<HTMLElement>(".cm-day");
+    const key = cell?.dataset.date;
+    if (!key) return;
+    const weekday = (new Date(`${key}T00:00:00`).getDay() + 6) % 7; // 0 = Monday
+    const moves: Record<string, string> = {
+      ArrowLeft: shiftDay(key, -1),
+      ArrowRight: shiftDay(key, 1),
+      ArrowUp: shiftDay(key, -7),
+      ArrowDown: shiftDay(key, 7),
+      Home: shiftDay(key, -weekday),
+      End: shiftDay(key, 6 - weekday),
+      PageUp: shiftMonth(key, -1),
+      PageDown: shiftMonth(key, 1),
+    };
+    const next = moves[event.key];
+    if (!next) return;
+    event.preventDefault();
+    chooseDay(next, true);
+  };
 
   const panelColumns = useMemo(
     () =>
@@ -327,22 +422,23 @@ export default function CalendarView({
               <span key={day}>{day}</span>
             ))}
           </div>
-          <div className="cm-grid">
+          <div className="cm-grid" ref={gridRef} role="group" aria-label="날짜 선택. 화살표 키로 이동" onKeyDown={onGridKeyDown}>
             {weeks.map((week) => (
-              <div className="cm-week" key={dayKey(week.days[0])} style={{ "--lanes": week.lanes } as CSSProperties}>
+              <div className="cm-week" key={dayKey(week.days[0])} style={{ "--lanes": week.lanes, "--more": week.hidden.some((count) => count > 0) ? "15px" : "0px" } as CSSProperties}>
                 {week.days.map((date, col) => {
                   const key = dayKey(date);
                   return (
                     <button
                       type="button"
                       key={key}
+                      data-date={key}
                       className={`cm-day ${date.getMonth() !== month.getMonth() ? "is-outside" : ""} ${key === today ? "is-today" : ""} ${selectedDate === key ? "is-selected" : ""}`}
                       style={{ gridColumn: col + 1 }}
-                      onClick={() => {
-                        setSelectedDate(key);
-                        setScope("date");
-                      }}
-                      aria-label={`${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 일정`}
+                      tabIndex={key === focusKey ? 0 : -1}
+                      aria-pressed={selectedDate === key}
+                      aria-current={key === today ? "date" : undefined}
+                      onClick={() => chooseDay(key)}
+                      aria-label={`${date.getFullYear()}년 ${date.getMonth() + 1}월 ${date.getDate()}일 ${DAY_NAMES[date.getDay()]}요일${key === today ? ", 오늘" : ""}, ${dayCounts.get(key) ? `일정 ${dayCounts.get(key)}개` : "일정 없음"}`}
                     >
                       <span className="cm-num">{date.getDate()}</span>
                     </button>
@@ -350,7 +446,7 @@ export default function CalendarView({
                 })}
                 {week.hidden.map((count, col) =>
                   count > 0 ? (
-                    <span className="cm-more" key={`more-${col}`} style={{ gridColumn: col + 1 }}>
+                    <span className="cm-more" key={`more-${col}`} style={{ gridColumn: col + 1, gridRow: week.lanes + 2 }} aria-hidden="true">
                       +{count}
                     </span>
                   ) : null,
@@ -366,6 +462,11 @@ export default function CalendarView({
                       if (parent) onSelect(parent);
                     }}
                     title={bar.entry.title}
+                    aria-label={`${TYPE_LABEL[bar.entry.type]} ${bar.entry.title}, ${
+                      bar.entry.dueDate && bar.entry.dueDate !== bar.entry.startDate
+                        ? `${shortDate(bar.entry.startDate)}부터 ${shortDate(bar.entry.dueDate)}까지`
+                        : shortDate(bar.entry.startDate)
+                    }${bar.entry.completed ? ", 완료" : ""}`}
                   >
                     <span>{bar.entry.title}</span>
                   </button>
@@ -389,7 +490,7 @@ export default function CalendarView({
             <div className="calendar-information-heading">
               <div>
                 <span className="calendar-kicker">{scope === "date" ? "선택한 날" : "전체"}</span>
-                <h2>{scope === "date" ? selectedLabel : "전체 목록"}</h2>
+                <h2 aria-live="polite">{scope === "date" ? selectedLabel : "전체 목록"}</h2>
               </div>
               <button className="tc-soft-btn" onClick={() => setScope((current) => (current === "date" ? "all" : "date"))}>
                 {scope === "date" ? "전체 보기" : "선택일 보기"}

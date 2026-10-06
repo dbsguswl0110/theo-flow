@@ -13,9 +13,9 @@ public final class CalendarData {
     public static final class Event {
         public final String id,title;
         public final LocalDate start,end;
-        public final boolean due,completed;
-        Event(String id,String title,LocalDate start,LocalDate end,boolean due,boolean completed) {
-            this.id=id;this.title=title;this.start=start;this.end=end;this.due=due;this.completed=completed;
+        public final boolean due,completed,task;
+        Event(String id,String title,LocalDate start,LocalDate end,boolean due,boolean completed,boolean task) {
+            this.id=id;this.title=title;this.start=start;this.end=end;this.due=due;this.completed=completed;this.task=task;
         }
     }
     static String field(JSONObject o,String camel,String snake) {
@@ -26,14 +26,14 @@ public final class CalendarData {
         return "";
     }
     static boolean done(JSONObject o) {return o.optBoolean("completed")||o.optInt("completed",0)==1;}
-    static Event event(JSONObject o,String fallback,String suffix) {
+    static Event event(JSONObject o,String fallback,String suffix,boolean task) {
         try {
             String s=field(o,"startDate","start_date");
             LocalDate start=LocalDate.parse(s.isEmpty()?fallback:s);
             String due=field(o,"dueDate","due_date");
             LocalDate end=due.isEmpty()?start:LocalDate.parse(due);
             if(end.isBefore(start))end=start;
-            return new Event(o.optString("id"),o.optString("title","제목 없음")+suffix,start,end,!due.isEmpty(),done(o));
+            return new Event(o.optString("id"),o.optString("title","제목 없음")+suffix,start,end,!due.isEmpty(),done(o),task);
         }catch(Exception e){return null;}
     }
     public static List<Event> parse(JSONArray array) {
@@ -43,7 +43,7 @@ public final class CalendarData {
             if(o==null||!field(o,"deletedAt","deleted_at").isEmpty())continue;
             String type=o.optString("type");
             if(!type.equals("task")&&!type.equals("todo"))continue;
-            Event parent=event(o,"","");
+            Event parent=event(o,"","",type.equals("task"));
             if(parent==null)continue;
             events.add(parent);
             if(!type.equals("todo"))continue;
@@ -52,7 +52,7 @@ public final class CalendarData {
             if(children!=null)for(int j=0;j<children.length();j++){
                 JSONObject child=children.optJSONObject(j);
                 if(child==null||!field(child,"deletedAt","deleted_at").isEmpty())continue;
-                Event item=event(child,parent.start.toString()," · "+parent.title);
+                Event item=event(child,parent.start.toString()," · "+parent.title,true);
                 if(item!=null)events.add(item);
             }
         }

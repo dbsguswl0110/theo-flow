@@ -995,6 +995,22 @@
   gap: 14px;
   align-items: start;
 }
+/* A Fold opened up (about 700 px wide) already has room for the month and the day's list side by side;
+   the list stays in view and scrolls on its own while the month holds still. */
+@media (min-width: 680px) {
+  .calendar-split-layout {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 14px;
+  }
+  .calendar-information-panel,
+  .calendar-timeline-panel {
+    position: sticky;
+    top: 12px;
+    max-height: calc(100dvh - 24px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
 @media (min-width: 880px) {
   .calendar-split-layout {
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
@@ -1026,7 +1042,7 @@
 .cm-week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: var(--head, 30px) repeat(var(--lanes, 3), var(--lane, 22px));
+  grid-template-rows: var(--head, 30px) repeat(var(--lanes, 3), var(--lane, 22px)) var(--more, 0px);
   padding-bottom: 6px;
 }
 .cm-week + .cm-week {
@@ -1047,9 +1063,6 @@
 }
 .cm-day:nth-child(1) {
   border-left: 0;
-}
-.cm-day.is-outside .cm-num {
-  color: #bdae9f;
 }
 /* Two quiet marks, both on the number only (a tinted cell would peek out around the bars):
    today is a red number, the chosen day is a filled dot, and today when chosen is a red dot. */
@@ -1079,17 +1092,15 @@
   background: #d8493d;
   color: #fff;
 }
+/* "+n" sits under the bars at the right edge of its day, so it never crowds the day number. */
 .cm-more {
-  grid-row: 1;
-  align-self: start;
+  align-self: center;
   justify-self: end;
-  display: flex;
-  align-items: center;
-  height: 24px;
-  margin: 5px 5px 0 0;
+  margin-right: 5px;
   z-index: 2;
   font-size: 10.5px;
   font-weight: 800;
+  line-height: 1;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -1177,7 +1188,6 @@
     font-size: 12px;
   }
   .cm-more {
-    height: 22px;
     margin-right: 4px;
     font-size: 10px;
   }
@@ -1461,4 +1471,33 @@
 }
 .utility-bar button:active {
   transform: scale(0.92);
+}
+
+/* ───────── Calendar: touch targets and contrast ───────── */
+.cal-nav button {
+  min-width: 44px;
+  height: 44px;
+}
+.cal-switch button {
+  min-height: 40px;
+}
+.cm-day.is-outside .cm-num {
+  color: #8f8073;
+}
+.calendar-information-card > input[type="checkbox"],
+.calendar-timeline-row > input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+}
+.calendar-information-card > input[type="checkbox"]:checked::after,
+.calendar-timeline-row > input[type="checkbox"]:checked::after {
+  left: 6px;
+  top: 2px;
+  width: 6px;
+  height: 11px;
+}
+.cm-day:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -3px;
+  z-index: 3;
 }

@@ -203,7 +203,7 @@ test("the detail screen shows a deadline card and the Todo's Task progress", asy
   await expect(page.locator(".subtask-editor h2")).toContainText("1/2");
 });
 
-test("the calendar speaks Korean, weeks are only as tall as their bars, and +n sits level with the day number", async ({
+test("the calendar speaks Korean, weeks are only as tall as their bars, and +n sits clear of the day number", async ({
   page,
 }) => {
   const crowded = ["가", "나", "다", "라"].map((name) => ({
@@ -226,14 +226,19 @@ test("the calendar speaks Korean, weeks are only as tall as their bars, and +n s
   const heights = await page.locator(".cm-week").evaluateAll((weeks) => weeks.map((w) => w.getBoundingClientRect().height));
   expect(Math.max(...heights)).toBeGreaterThan(Math.min(...heights));
 
-  // Three lanes fit, so the fourth item is counted instead of drawn, level with the number.
+  // Lanes fill up, so the extra item is counted ("+1") under the bars, inside its own day and clear of the number.
   const more = page.locator(".cm-more");
   await expect(more).toHaveText("+1");
-  const [moreBox, numBox] = await Promise.all([
+  const [moreBox, numBox, dayBox, lastBar] = await Promise.all([
     more.boundingBox(),
     page.locator(".cm-day.is-today .cm-num").boundingBox(),
+    page.locator(".cm-day.is-today").boundingBox(),
+    page.locator(".cm-week", { has: more }).locator(".cm-bar").last().boundingBox(),
   ]);
-  expect(Math.abs(moreBox!.y + moreBox!.height / 2 - (numBox!.y + numBox!.height / 2))).toBeLessThan(2);
+  expect(moreBox!.y).toBeGreaterThanOrEqual(numBox!.y + numBox!.height);
+  expect(moreBox!.y).toBeGreaterThanOrEqual(lastBar!.y + lastBar!.height - 1);
+  expect(moreBox!.x).toBeGreaterThanOrEqual(dayBox!.x);
+  expect(moreBox!.x + moreBox!.width).toBeLessThanOrEqual(dayBox!.x + dayBox!.width + 1);
 
   // Today is chosen at first: a red dot. Choosing another day moves a dark dot there and leaves today a plain red number.
   const todayNum = page.locator(".cm-day.is-today .cm-num");
@@ -243,4 +248,64 @@ test("the calendar speaks Korean, weeks are only as tall as their bars, and +n s
   await expect(todayNum).toHaveCSS("color", "rgb(216, 73, 61)");
   await expect(page.locator(".cm-day.is-selected .cm-num")).toHaveCSS("background-color", "rgb(95, 68, 55)");
   await expect(page.locator(".cm-day.is-selected")).toHaveCount(1);
+});
+
+test("an unfolded Fold shows the month and the day's list side by side, a phone stacks them", async ({ page }) => {
+  await mockApi(page, [{ ...base, id: "a", type: "task", title: "나란히 보기", startDate: dayKey(0) }]);
+  await ready(page);
+  await page.locator('[data-target="calendar"] button').click({ force: true });
+  await page.waitForTimeout(700);
+  const phone = await Promise.all([
+    page.locator(".calendar-month-panel").boundingBox(),
+    page.locator(".calendar-information-panel").boundingBox(),
+  ]);
+  expect(phone[1]!.y).toBeGreaterThanOrEqual(phone[0]!.y + phone[0]!.height - 1);
+
+  await page.setViewportSize({ width: 700, height: 780 });
+  await page.waitForTimeout(400);
+  const fold = await Promise.all([
+    page.locator(".calendar-month-panel").boundingBox(),
+    page.locator(".calendar-information-panel").boundingBox(),
+  ]);
+  expect(fold[1]!.x).toBeGreaterThanOrEqual(fold[0]!.x + fold[0]!.width - 1);
+  expect(Math.abs(fold[1]!.y - fold[0]!.y)).toBeLessThan(40);
+  await expect(page.locator(".calendar-information-column.task")).toContainText("나란히 보기");
+});
+
+test("the calendar is usable by keyboard and screen reader: roving focus, arrow keys, counts in the labels", async ({
+  page,
+}) => {
+  await mockApi(page, [
+    { ...base, id: "a", type: "task", title: "하나", startDate: dayKey(0), dueDate: dayKey(0) },
+    { ...base, id: "b", type: "task", title: "둘", startDate: dayKey(0), dueDate: dayKey(2) },
+  ]);
+  await ready(page);
+  await page.locator('[data-target="calendar"] button').click({ force: true });
+  await page.waitForTimeout(700);
+
+  const today = page.locator(".cm-day.is-today");
+  await expect(today).toHaveAttribute("aria-current", "date");
+  await expect(today).toHaveAttribute("aria-label", /오늘, 일정 2개/);
+  await expect(page.locator('.cm-day[tabindex="0"]')).toHaveCount(1);
+  await expect(page.locator('.cm-bar[aria-label*="하나"]')).toHaveAttribute("aria-label", /^Task 하나, /);
+
+  await today.focus();
+  await page.keyboard.press("ArrowRight");
+  const next = page.locator(`.cm-day[data-date="${dayKey(1)}"]`);
+  await expect(next).toBeFocused();
+  await expect(next).toHaveAttribute("aria-pressed", "true");
+  await expect(next).toHaveAttribute("aria-label", /일정 1개/);
+  await expect(page.locator('.cm-day[tabindex="0"]')).toHaveCount(1);
+  await expect(page.locator(".calendar-information-heading h2")).toContainText(String(new Date(dayKey(1) + "T00:00:00").getDate()));
+
+  await page.keyboard.press("ArrowDown");
+  await expect(page.locator(`.cm-day[data-date="${dayKey(8)}"]`)).toBeFocused();
+
+  // PageDown goes to the next month and keeps focus on a day there.
+  await page.keyboard.press("PageDown");
+  const focused = page.locator(".cm-day:focus");
+  await expect(focused).toHaveCount(1);
+  const target = new Date(dayKey(8) + "T00:00:00");
+  target.setMonth(target.getMonth() + 1);
+  await expect(page.locator(".tc-title h1")).toContainText(`${target.getFullYear()}년 ${target.getMonth() + 1}월`);
 });

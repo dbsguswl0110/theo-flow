@@ -71,9 +71,11 @@ public class TheoCalendarWidgetProvider extends AppWidgetProvider {
     }
     static RemoteViews frame(Context context,int id,int width,int height,LocalDate today,JSONArray data,boolean pending,float scale){
         RemoteViews views=new RemoteViews(context.getPackageName(),R.layout.teo_calendar_canvas);
-        views.setImageViewBitmap(R.id.calendar_image,CalendarPainter.draw(width,height,today,CalendarData.parse(data),pending,scale));
-        views.setContentDescription(R.id.calendar_image,today.getYear()+"년 "+today.getMonthValue()+"월 캘린더. Todo와 Task. 탭하면 TEO를 엽니다.");
-        Intent open=new Intent(context,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        List<CalendarData.Event> events=CalendarData.parse(data);
+        views.setImageViewBitmap(R.id.calendar_image,CalendarPainter.draw(width,height,today,events,pending,scale));
+        views.setContentDescription(R.id.calendar_image,CalendarText.describe(today,events));
+        // Tapping opens the app on its calendar rather than wherever it was left.
+        Intent open=new Intent(context,MainActivity.class).putExtra("theo_open","calendar").addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP|Intent.FLAG_ACTIVITY_SINGLE_TOP);
         views.setOnClickPendingIntent(R.id.calendar_root,PendingIntent.getActivity(context,id,open,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
         return views;
     }
