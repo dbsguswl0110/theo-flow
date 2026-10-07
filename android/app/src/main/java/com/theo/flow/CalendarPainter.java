@@ -16,6 +16,13 @@ public final class CalendarPainter {
         LINE=Color.rgb(229,218,207),TODO=Color.rgb(200,105,61),TASK=Color.rgb(61,125,125),TODAY=Color.rgb(216,73,61),SUNDAY=Color.rgb(196,101,90);
     private static final String[] DAYS={"월","화","수","목","금","토","일"};
 
+    /** The colour of a bar: the item's colour laid thinly over the paper, like the tinted bars of the app, the panel and the Mac widget. */
+    static int tint(int color,float amount) {
+        return Color.rgb(Math.round(Color.red(PAPER)*(1-amount)+Color.red(color)*amount),
+            Math.round(Color.green(PAPER)*(1-amount)+Color.green(color)*amount),
+            Math.round(Color.blue(PAPER)*(1-amount)+Color.blue(color)*amount));
+    }
+
     public static Bitmap draw(int width,int height,LocalDate today,List<CalendarData.Event> events,boolean pending) {
         return draw(width,height,today,events,pending,2f);
     }
@@ -44,10 +51,10 @@ public final class CalendarPainter {
             c.drawText(DAYS[i],left+col*(i+.5f)-text.measureText(DAYS[i])/2,58,text);
         }
         YearMonth month=YearMonth.from(today);LocalDate first=CalendarData.first(month);
-        // Delicate dividers are the calendar's boundaries, not extra blank panels.
+        // One hairline between weeks; no vertical lines, so bars that span days are not cut into pieces.
         p.setColor(LINE);p.setAlpha(255);p.setStrokeWidth(.5f);
         for(int w=0;w<=6;w++)c.drawLine(left,top+w*row,right,top+w*row,p);
-        for(int d=1;d<7;d++)c.drawLine(left+d*col,top,left+d*col,bottom,p);
+        Path capsule=new Path();
         for(int w=0;w<6;w++) {
             LocalDate week=first.plusDays(w*7);float y=top+w*row;
             text.setTextSize(12);
@@ -71,13 +78,27 @@ public final class CalendarPainter {
                 CalendarData.Event event=bar.event;
                 float x1=left+bar.col*col+3,x2=left+(bar.col+bar.span)*col-3,ey=y+30+bar.lane*16;
                 // Todo is orange and Task is teal, as on the web calendar and the macOS panel.
-                p.setColor(event.task?TASK:TODO);p.setAlpha(event.completed?110:255);
-                if(event.due){p.setStrokeWidth(1.2f);c.drawLine(x1,ey+4,x2,ey+4,p);}
-                else c.drawCircle(x1+2,ey-4,2,p);
+                int base=event.task?TASK:TODO;
+                float tx,limit=x2-4;
+                if(event.due){
+                    // A tinted capsule behind the title. Where the item carries on into the next week (or came from the last)
+                    // that end runs square to the edge of the week, so the bar reads as one piece.
+                    boolean head=!event.start.isBefore(week),tail=!event.end.isAfter(week.plusDays(6));
+                    float bx1=head?x1:left+bar.col*col,bx2=tail?x2:left+(bar.col+bar.span)*col,r=7;
+                    p.setColor(tint(base,event.completed?.12f:.26f));p.setAlpha(255);
+                    capsule.reset();
+                    capsule.addRoundRect(bx1,ey-10.5f,bx2,ey+3.5f,new float[]{head?r:0,head?r:0,tail?r:0,tail?r:0,tail?r:0,tail?r:0,head?r:0,head?r:0},Path.Direction.CW);
+                    c.drawPath(capsule,p);
+                    tx=bx1+6;limit=bx2-5;
+                } else {
+                    // No due date: a dot and a title, no bar.
+                    p.setColor(base);p.setAlpha(event.completed?110:255);
+                    c.drawCircle(x1+3,ey-3.5f,2.4f,p);
+                    tx=x1+9;
+                }
                 text.setTextSize(11.5f);text.setColor(INK);text.setAlpha(event.completed?120:255);
-                float tx=x1+(event.due?0:7);
-                String label=TextUtils.ellipsize(event.title,text,Math.max(1,x2-tx),TextUtils.TruncateAt.END).toString();
-                c.save();c.clipRect(x1,y+19,x2,y+row-8);
+                String label=TextUtils.ellipsize(event.title,text,Math.max(1,limit-tx),TextUtils.TruncateAt.END).toString();
+                c.save();c.clipRect(left,y+19,right,y+row-2);
                 c.drawText(label,tx,ey,text);c.restore();
             }
             text.setAlpha(255);text.setTextSize(9.5f);text.setColor(MUTED);
