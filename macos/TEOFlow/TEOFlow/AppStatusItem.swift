@@ -1,24 +1,25 @@
 import AppKit
 
-/// The menu bar icon that controls the panel. The panel has no Dock icon, menu or close button, so this is its menu.
-final class PanelStatusItem: NSObject, NSMenuDelegate {
+/// The menu bar icon: always there, and the way to open the web window, show or hide the panel and quit.
+@MainActor
+final class AppStatusItem: NSObject, NSMenuDelegate {
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let panel: NSPanel
+    private let web: WebWindow
     private let completedItem: NSMenuItem
     private let checklistItem: NSMenuItem
-    private let floatingItem: NSMenuItem
     private let syncedItem: NSMenuItem
 
-    init(panel: NSPanel) {
+    init(panel: NSPanel, web: WebWindow) {
         self.panel = panel
-        completedItem = NSMenuItem(title: "완료 항목 표시", action: #selector(PanelStatusItem.toggleCompleted), keyEquivalent: "")
-        checklistItem = NSMenuItem(title: "할 일 목록 표시", action: #selector(PanelStatusItem.toggleChecklist), keyEquivalent: "")
-        floatingItem = NSMenuItem(title: "항상 위에 표시", action: #selector(PanelStatusItem.toggleFloating), keyEquivalent: "")
+        self.web = web
+        completedItem = NSMenuItem(title: "완료 항목 표시", action: #selector(AppStatusItem.toggleCompleted), keyEquivalent: "")
+        checklistItem = NSMenuItem(title: "할 일 목록 표시", action: #selector(AppStatusItem.toggleChecklist), keyEquivalent: "")
         syncedItem = NSMenuItem(title: "마지막 동기화 —", action: nil, keyEquivalent: "")
         super.init()
 
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "calendar", accessibilityDescription: "TEO 달력 패널")
+            button.image = NSImage(systemSymbolName: "calendar", accessibilityDescription: "TEO")
             if button.image == nil {
                 button.title = "TEO"
             }
@@ -26,19 +27,19 @@ final class PanelStatusItem: NSObject, NSMenuDelegate {
 
         let menu = NSMenu()
         menu.delegate = self
-        menu.addItem(item("패널 보이기 / 숨기기", #selector(PanelStatusItem.togglePanel)))
-        menu.addItem(item("새로고침", #selector(PanelStatusItem.refresh), key: "r"))
+        menu.addItem(item("TEO 열기", #selector(AppStatusItem.openWeb)))
+        menu.addItem(item("바탕화면 패널 보이기 / 숨기기", #selector(AppStatusItem.togglePanel)))
+        menu.addItem(item("패널 새로고침", #selector(AppStatusItem.refresh)))
+        menu.addItem(NSMenuItem.separator())
         completedItem.target = self
         menu.addItem(completedItem)
         checklistItem.target = self
         menu.addItem(checklistItem)
-        floatingItem.target = self
-        menu.addItem(floatingItem)
         menu.addItem(NSMenuItem.separator())
         syncedItem.isEnabled = false
         menu.addItem(syncedItem)
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(item("종료", #selector(PanelStatusItem.quit), key: "q"))
+        menu.addItem(item("종료", #selector(AppStatusItem.quit), key: "q"))
         statusItem.menu = menu
     }
 
@@ -52,16 +53,19 @@ final class PanelStatusItem: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         completedItem.state = PanelPreferences.showCompleted ? .on : .off
         checklistItem.state = PanelPreferences.showChecklist ? .on : .off
-        floatingItem.state = panel.level == .floating ? .on : .off
         let time = PanelPreferences.lastSynced?.formatted(date: .omitted, time: .shortened) ?? "—"
         syncedItem.title = "마지막 동기화 \(time)"
+    }
+
+    @objc private func openWeb() {
+        web.show()
     }
 
     @objc private func togglePanel() {
         if panel.isVisible {
             panel.orderOut(nil)
         } else {
-            panel.makeKeyAndOrderFront(nil)
+            panel.orderFront(nil)
         }
     }
 
@@ -75,10 +79,6 @@ final class PanelStatusItem: NSObject, NSMenuDelegate {
 
     @objc private func toggleChecklist() {
         PanelPreferences.showChecklist.toggle()
-    }
-
-    @objc private func toggleFloating() {
-        panel.level = panel.level == .floating ? .normal : .floating
     }
 
     @objc private func quit() {

@@ -13,9 +13,6 @@ enum PanelPreferences {
     static let calendarShareKey = "panelCalendarShare"
     static let defaultCalendarShare = 0.66
     static let frameName = "TEOCalendarPanel"
-    /// Bumped when the window's default layout changes, so an older saved window can be adjusted once.
-    static let layoutVersionKey = "panelLayoutVersion"
-    static let layoutVersion = 2
     private static let lastSyncedKey = "panelLastSynced"
 
     static func registerDefaults() {

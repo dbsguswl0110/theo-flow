@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Builds both Mac apps and wraps them for installing (Apple Silicon, macOS 14+):
+# Builds TEO (the app, with its widget inside) and wraps it for installing (Apple Silicon, macOS 14+):
 #   ./macos/package.sh
 # Output in artifacts/macos:
-#   TEO.app                    the host app with the widget inside (Contents/PlugIns/TEOFlowWidget.appex)
-#   TEO Calendar Panel.app     the floating calendar panel
-#   TEO-Mac.dmg                both apps and an Applications shortcut, to drag across
-#   TEO.zip, TEO-Calendar-Panel.zip
+#   TEO.app       the app: menu bar icon, web window and desktop panel, with the widget inside
+#                 (Contents/PlugIns/TEOFlowWidget.appex)
+#   TEO-Mac.dmg   TEO.app and an Applications shortcut, to drag across
+#   TEO.zip       the same app, zipped
 # The apps are signed ad hoc (no Apple developer account), so macOS asks for a first-open approval; see the README.
 set -euo pipefail
 
@@ -17,7 +17,7 @@ ICON=public/assets/teo-pixel-app-icon.png
 
 ./macos/build.sh all
 
-rm -rf "$OUT/TEO.app" "$OUT/TEO Calendar Panel.app" "$OUT/dmg" "$OUT/AppIcon.iconset" "$OUT"/*.zip "$OUT"/*.dmg "$OUT/AppIcon.icns"
+rm -rf "$OUT/TEO.app" "$OUT/dmg" "$OUT/AppIcon.iconset" "$OUT"/*.zip "$OUT"/*.dmg "$OUT/AppIcon.icns"
 
 # One PNG becomes the .icns every app shares.
 mkdir -p "$OUT/AppIcon.iconset"
@@ -44,26 +44,15 @@ cp "$RES/TEOFlowWidget-Info.plist" "$APPEX/Contents/Info.plist"
 codesign --force --sign - --entitlements "$RES/TEOFlow.entitlements" "$APPEX"
 codesign --force --sign - --entitlements "$RES/TEOFlow.entitlements" "$APP"
 
-# --- TEO Calendar Panel.app ---
-PANEL="$OUT/TEO Calendar Panel.app"
-mkdir -p "$PANEL/Contents/MacOS" "$PANEL/Contents/Resources"
-cp "$BUILD/TEOCalendarPanel" "$PANEL/Contents/MacOS/TEOCalendarPanel"
-cp "$RES/TEOCalendarPanel-Info.plist" "$PANEL/Contents/Info.plist"
-cp "$OUT/AppIcon.icns" "$PANEL/Contents/Resources/AppIcon.icns"
-plist "$PANEL/Contents/Info.plist" "Add :CFBundleIconFile string AppIcon"
-plist "$PANEL/Contents/Info.plist" "Add :NSHighResolutionCapable bool true"
-codesign --force --sign - "$PANEL"
-
-for bundle in "$APP" "$APPEX" "$PANEL"; do
+for bundle in "$APP" "$APPEX"; do
   plutil -lint "$bundle/Contents/Info.plist"
   codesign --verify --strict --verbose=2 "$bundle"
 done
 
 # --- Things to hand over ---
 ditto -c -k --keepParent "$APP" "$OUT/TEO.zip"
-ditto -c -k --keepParent "$PANEL" "$OUT/TEO-Calendar-Panel.zip"
 mkdir -p "$OUT/dmg"
-cp -R "$APP" "$PANEL" "$OUT/dmg/"
+cp -R "$APP" "$OUT/dmg/"
 ln -s /Applications "$OUT/dmg/Applications"
 hdiutil create -volname "TEO" -srcfolder "$OUT/dmg" -ov -format UDZO "$OUT/TEO-Mac.dmg" > /dev/null
 rm -rf "$OUT/dmg" "$OUT/AppIcon.iconset"
