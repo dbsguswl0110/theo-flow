@@ -34,6 +34,7 @@ struct PanelCalendarView: View {
     @AppStorage(PanelPreferences.showCompletedKey) private var showCompleted = true
     @AppStorage(PanelPreferences.showChecklistKey) private var showChecklist = true
     @AppStorage(PanelPreferences.calendarShareKey) private var calendarShare = PanelPreferences.defaultCalendarShare
+    @AppStorage(PanelPreferences.plateOpacityKey) private var plateOpacity = PanelPreferences.defaultPlateOpacity
 
     private let calendar = Calendar.current
 
@@ -47,12 +48,18 @@ struct PanelCalendarView: View {
             .padding(m.padding)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .overlay(alignment: .bottom) { footer(m) }
-            .background(PanelVisualEffect())
-            .background(Color.white.opacity(0.05))
+            .background {
+                ZStack {
+                    PanelVisualEffect()
+                    // A light plate over the blur so the brown text reads on a dark or vivid wallpaper too.
+                    // How solid it is can be chosen in the menu bar menu (clear, normal, solid).
+                    Color(red: 0.995, green: 0.985, blue: 0.965).opacity(plateOpacity)
+                }
+            }
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(Color.white.opacity(0.34), lineWidth: 1)
+                    .stroke(Color(red: 0.42, green: 0.30, blue: 0.22).opacity(0.16), lineWidth: 1)
             }
             .shadow(color: Color.black.opacity(0.13), radius: 26, y: 14)
         }
@@ -67,7 +74,8 @@ struct PanelCalendarView: View {
     private func header(_ m: PanelMetrics) -> some View {
         HStack(spacing: 8) {
             // Written out so the title is Korean whatever language the Mac is set to, like the widget and the app.
-            Text("\(calendar.component(.year, from: month))년 \(calendar.component(.month, from: month))월")
+            // verbatim: a plain Text would format the year as "2,026".
+            Text(verbatim: "\(calendar.component(.year, from: month))년 \(calendar.component(.month, from: month))월")
                 .font(.system(size: m.monthFont, weight: .bold, design: .rounded))
                 .foregroundStyle(TEOPalette.ink)
                 .lineLimit(1)
@@ -152,7 +160,7 @@ struct PanelCalendarView: View {
         } else if let lastSynced = store.lastSynced {
             Text("\(lastSynced.formatted(date: .omitted, time: .shortened)) 동기화 · 60초마다 갱신")
                 .font(.system(size: m.smallFont, weight: .medium, design: .rounded))
-                .foregroundStyle(TEOPalette.inkSoft.opacity(0.55))
+                .foregroundStyle(TEOPalette.muted)
                 .padding(.bottom, m.compact ? 5 : 8)
         }
     }
@@ -169,7 +177,7 @@ struct PanelCalendarView: View {
             ForEach(Array(CalendarWords.weekdays.enumerated()), id: \.offset) { index, day in
                 Text(day)
                     .font(.system(size: m.weekdayFont, weight: .semibold, design: .rounded))
-                    .foregroundStyle(index == 6 ? TEOPalette.today.opacity(0.75) : TEOPalette.muted.opacity(0.7))
+                    .foregroundStyle(index == 6 ? TEOPalette.alert : TEOPalette.inkSoft)
                     .frame(maxWidth: .infinity)
             }
         }
@@ -227,16 +235,17 @@ struct PanelCalendarView: View {
         let isToday = day.map { calendar.isDate($0, inSameDayAs: Date()) } ?? false
         return ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                .fill(Color.white.opacity(day == nil ? 0.0 : 0.22))
+                .fill(Color.white.opacity(day == nil ? 0.0 : 0.62))
             if let day {
-                Text(day, format: .dateTime.day())
+                // Just the number, as on the web calendar (a date format would add "일" in Korean).
+                Text(verbatim: String(calendar.component(.day, from: day)))
                     .font(.system(size: m.dayFont, weight: isToday ? .bold : .medium, design: .rounded))
-                    .foregroundStyle(isToday ? TEOPalette.today : TEOPalette.inkSoft.opacity(0.9))
+                    .foregroundStyle(isToday ? TEOPalette.today : TEOPalette.ink)
                     .padding(m.cellInset)
                 if hidden > 0 {
                     Text("+\(hidden)")
                         .font(.system(size: m.smallFont, weight: .bold, design: .rounded))
-                        .foregroundStyle(TEOPalette.accent.opacity(0.85))
+                        .foregroundStyle(TEOPalette.accent)
                         .padding(m.cellInset)
                         .frame(maxWidth: .infinity, alignment: .topTrailing)
                 }
@@ -273,7 +282,7 @@ struct PanelCalendarView: View {
                     ),
                     style: .continuous
                 )
-                .fill(color.opacity(0.26))
+                .fill(color.opacity(0.34))
             }
         }
         .opacity(segment.item.completed ? 0.5 : 1)

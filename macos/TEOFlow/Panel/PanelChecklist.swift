@@ -72,7 +72,7 @@ struct ChecklistView: View {
                     .foregroundStyle(TEOPalette.muted)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 1)
-                    .background(Color.white.opacity(0.4), in: Capsule())
+                    .background(Color(red: 0.42, green: 0.30, blue: 0.22).opacity(0.1), in: Capsule())
                 Spacer(minLength: 0)
             }
             if items.isEmpty {
@@ -99,7 +99,7 @@ struct ChecklistView: View {
         }
         .padding(compact ? 8 : 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color.white.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
@@ -133,7 +133,7 @@ private struct ChecklistRow: View {
                     .lineLimit(1)
                 Text(CalendarWords.when(item, today: today))
                     .font(.system(size: compact ? 9 : 10, weight: .medium, design: .rounded))
-                    .foregroundStyle(overdue ? TEOPalette.today : TEOPalette.muted)
+                    .foregroundStyle(overdue ? TEOPalette.alert : TEOPalette.muted)
                     .lineLimit(1)
             }
             Spacer(minLength: 0)

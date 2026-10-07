@@ -72,14 +72,7 @@ struct CalendarWidgetView: View {
         content
             .padding(family == .systemSmall ? 10 : 14)
             .containerBackground(for: .widget) {
-                ZStack {
-                    Color(red: 0.96, green: 0.91, blue: 0.86).opacity(0.72)
-                    Rectangle().fill(.ultraThinMaterial).opacity(0.78)
-                }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.white.opacity(0.62), lineWidth: 1)
+                Color.white
             }
     }
 
@@ -132,7 +125,8 @@ struct CalendarWidgetView: View {
     private var header: some View {
         let parts = calendar.dateComponents([.year, .month], from: entry.date)
         return HStack(alignment: .firstTextBaseline) {
-            Text("\(parts.year ?? 0)년 \(parts.month ?? 0)월")
+            // verbatim: a plain Text would format the year as "2,026".
+            Text(verbatim: "\(parts.year ?? 0)년 \(parts.month ?? 0)월")
                 .font(.system(size: family == .systemSmall || family == .systemMedium ? 13 : 16, weight: .bold, design: .rounded))
                 .foregroundStyle(TEOPalette.ink)
             Spacer(minLength: 4)
@@ -194,7 +188,7 @@ struct CalendarWidgetView: View {
         return VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 0) {
                 if let day {
-                    Text(day, format: .dateTime.day())
+                    Text(verbatim: String(calendar.component(.day, from: day)))
                         .font(.system(size: numberSize, weight: isToday ? .bold : .medium, design: .rounded))
                         .foregroundStyle(isToday ? TEOPalette.today : TEOPalette.inkSoft.opacity(0.85))
                 }
@@ -220,7 +214,7 @@ struct CalendarWidgetView: View {
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .topLeading)
         .background {
             RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(Color.white.opacity(dayItems.isEmpty ? 0.16 : 0.30))
+                .fill(TEOPalette.ink.opacity(dayItems.isEmpty ? 0.045 : 0.09))
         }
         .overlay(alignment: .bottom) {
             if titleLines == 0 && !dayItems.isEmpty {
@@ -315,10 +309,10 @@ struct CalendarWidgetView: View {
             }
             .foregroundStyle(TEOPalette.ink.opacity(0.9))
             .frame(maxWidth: .infinity, minHeight: 22)
-            .background(Color.white.opacity(0.34), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .background(TEOPalette.ink.opacity(0.06), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .stroke(Color.white.opacity(0.44), lineWidth: 0.7)
+                    .stroke(TEOPalette.ink.opacity(0.1), lineWidth: 0.7)
             }
         }
         .buttonStyle(.plain)

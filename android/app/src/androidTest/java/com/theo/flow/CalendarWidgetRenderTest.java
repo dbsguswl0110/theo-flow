@@ -68,7 +68,7 @@ public class CalendarWidgetRenderTest {
             });
         }
     }
-    @Test public void tasksDotsAndDurationLinesAreActuallyDrawn() throws Exception {
+    @Test public void tasksDotsAndDurationBarsAreActuallyDrawn() throws Exception {
         java.util.List<CalendarData.Event> data=CalendarData.parse(fixture());
         Bitmap result=CalendarPainter.draw(680,400,LocalDate.of(2026,9,10),data,false);
         Bitmap empty=CalendarPainter.draw(680,400,LocalDate.of(2026,9,10),java.util.Collections.emptyList(),false);
@@ -76,10 +76,14 @@ public class CalendarWidgetRenderTest {
         int changed=0;
         for(int y=140;y<780;y++)for(int x=24;x<1336;x++)if(result.getPixel(x,y)!=empty.getPixel(x,y))changed++;
         assertTrue("Titles and markers visible below weekday header",changed>200);
-        // Todo is drawn in orange and Task in teal, whatever the layout.
+        // Todo is drawn in orange and Task in teal, whatever the layout: dots and the agenda use the colour itself,
+        // and an item with a due date is a bar in a thin tint of it.
         assertTrue("Todo colour is used",has(result,CalendarPainter.TODO));
         assertTrue("Task colour is used",has(result,CalendarPainter.TASK));
-        assertFalse("Without events neither colour appears",has(empty,CalendarPainter.TODO)||has(empty,CalendarPainter.TASK));
+        assertTrue("A Todo with a due date is a tinted bar",has(result,CalendarPainter.tint(CalendarPainter.TODO,.26f)));
+        assertTrue("A Task with a due date is a tinted bar",has(result,CalendarPainter.tint(CalendarPainter.TASK,.26f)));
+        assertFalse("Without events no colour appears",has(empty,CalendarPainter.TODO)||has(empty,CalendarPainter.TASK)
+            ||has(empty,CalendarPainter.tint(CalendarPainter.TODO,.26f))||has(empty,CalendarPainter.tint(CalendarPainter.TASK,.26f)));
     }
     static boolean has(Bitmap bitmap,int color){
         for(int y=0;y<bitmap.getHeight();y++)for(int x=0;x<bitmap.getWidth();x++)if(bitmap.getPixel(x,y)==color)return true;
