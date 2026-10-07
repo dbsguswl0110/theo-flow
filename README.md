@@ -71,7 +71,8 @@ The installed bundle is `TEO.app`; after opening it once, add **TEO 캘린더** 
 
 TEO on the Mac is **one app, `TEO.app`, with no Dock icon**. A calendar icon in the menu bar is always there; opening TEO shows the TEO web app in a window (it opens on the calendar, see *Mac app mode* above) and puts the calendar panel on the desktop. The panel's own settings and the widget live in the same app.
 
-- **Menu bar icon**: *TEO 열기* (brings the web window back), *바탕화면 패널 보이기 / 숨기기*, *패널 새로고침*, *완료 항목 표시*, *할 일 목록 표시*, the last sync time and *종료*. Closing the web window leaves the panel and the icon where they are; opening TEO again (Finder, Spotlight, a widget tap) brings the window back. Because there is no Dock icon, TEO is not in Cmd+Tab either: the menu bar icon is the way back.
+- **Menu bar icon**: *TEO 열기* (brings the web window back), *바탕화면 패널 보이기 / 숨기기*, *패널 새로고침*, *완료 항목 표시*, *할 일 목록 표시*, *로그인할 때 열기*, the last sync time and *종료*. Closing the web window leaves the panel and the icon where they are; opening TEO again (Finder, Spotlight, a widget tap) brings the window back. Because there is no Dock icon, TEO is not in Cmd+Tab either: the menu bar icon is the way back.
+- **Open at login**: *로그인할 때 열기* registers TEO as a login item (`SMAppService`); macOS may ask you to approve it once in *System Settings → General → Login Items*, and the item shows a dash until you do. When macOS starts TEO that way only the desktop panel appears, so the web window does not pop up every morning; opening TEO yourself still shows both.
 - **Keyboard**: the app has a hidden main menu for Cmd+C / V / X / A / Z, Cmd+R (reload) and Cmd+W / M / Q, so copying and pasting work in the web window.
 - **Widget links** (`teoflow://calendar`, `note`, `task`, `todo`, `new-note`) open the window on that screen.
 

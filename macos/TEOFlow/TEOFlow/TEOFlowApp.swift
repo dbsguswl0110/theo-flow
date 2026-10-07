@@ -29,7 +29,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.orderFront(nil)
         self.panel = panel
         statusItem = AppStatusItem(panel: panel, web: web)
-        web.show()
+        // Started by macOS at login: only the panel, so the web window does not pop up every morning.
+        if !Self.launchedAtLogin {
+            web.show()
+        }
+    }
+
+    /// True when this launch is macOS opening the app as a login item. Only valid while the app is finishing launching.
+    private static var launchedAtLogin: Bool {
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        return event?.eventID == kAEOpenApplication
+            && event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
     }
 
     // Widget links: teoflow://calendar, teoflow://note, teoflow://new-note ...
