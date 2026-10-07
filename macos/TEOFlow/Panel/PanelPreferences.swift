@@ -13,10 +13,10 @@ enum PanelPreferences {
     static let calendarShareKey = "panelCalendarShare"
     static let defaultCalendarShare = 0.66
     /// How solid the light plate under the panel's text is. Lower shows more of the wallpaper; higher reads better on busy ones.
+    /// The menu bar menu has a slider for it.
     static let plateOpacityKey = "panelPlateOpacity"
     static let defaultPlateOpacity = 0.62
-    /// The choices in the menu bar menu, from the clearest glass to the most solid.
-    static let plateChoices: [(name: String, opacity: Double)] = [("맑게", 0.4), ("보통", 0.62), ("진하게", 0.86)]
+    static let plateRange = 0.2...0.95
     static let frameName = "TEOCalendarPanel"
     private static let lastSyncedKey = "panelLastSynced"
 
@@ -29,6 +29,11 @@ enum PanelPreferences {
     static var showCompleted: Bool {
         get { UserDefaults.standard.bool(forKey: showCompletedKey) }
         set { UserDefaults.standard.set(newValue, forKey: showCompletedKey) }
+    }
+
+    static var plateOpacity: Double {
+        get { min(max(UserDefaults.standard.double(forKey: plateOpacityKey), plateRange.lowerBound), plateRange.upperBound) }
+        set { UserDefaults.standard.set(min(max(newValue, plateRange.lowerBound), plateRange.upperBound), forKey: plateOpacityKey) }
     }
 
     static var showChecklist: Bool {
