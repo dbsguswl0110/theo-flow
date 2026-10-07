@@ -20,10 +20,10 @@ final class HandleView: NSView {
 
     override func draw(_ dirtyRect: NSRect) {
         // Keep the grip visible against both light and dark desktop backgrounds.
-        NSColor(calibratedWhite: 1, alpha: 0.2).setFill()
+        NSColor(calibratedWhite: 1, alpha: 0.72).setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 7, yRadius: 7).fill()
 
-        NSColor(calibratedWhite: 0.18, alpha: 0.5).setFill()
+        NSColor(calibratedWhite: 0.18, alpha: 0.6).setFill()
         let dot: CGFloat = 2.2
         for row in 0..<3 {
             for column in 0..<2 {
@@ -60,7 +60,8 @@ final class HandleView: NSView {
 struct PanelVisualEffect: NSViewRepresentable {
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
-        view.material = .hudWindow
+        // A light material (the panel is always drawn with the light appearance), not the dark HUD one.
+        view.material = .popover
         view.blendingMode = .behindWindow
         view.state = .active
         return view
@@ -78,7 +79,7 @@ struct PanelPillButtonStyle: ButtonStyle {
             .foregroundStyle(Color(red: 0.42, green: 0.29, blue: 0.22))
             .padding(.horizontal, compact ? 7 : 9)
             .frame(minHeight: compact ? 22 : 26)
-            .background(Color.white.opacity(configuration.isPressed ? 0.3 : 0.44), in: Capsule())
+            .background(Color.white.opacity(configuration.isPressed ? 0.55 : 0.8), in: Capsule())
     }
 }
 
@@ -90,6 +91,6 @@ struct PanelIconButtonStyle: ButtonStyle {
             .font(.system(size: compact ? 13 : 16, weight: .semibold, design: .rounded))
             .foregroundStyle(Color(red: 0.42, green: 0.29, blue: 0.22))
             .frame(width: compact ? 24 : 28, height: compact ? 22 : 26)
-            .background(Color.white.opacity(configuration.isPressed ? 0.3 : 0.44), in: Capsule())
+            .background(Color.white.opacity(configuration.isPressed ? 0.55 : 0.8), in: Capsule())
     }
 }

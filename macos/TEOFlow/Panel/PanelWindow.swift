@@ -28,6 +28,8 @@ enum PanelWindow {
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
+        // Light whatever the system setting: the colours and the material are made for a light plate.
+        panel.appearance = NSAppearance(named: .aqua)
         // Only the grip moves the window: the transparent title bar must not drag it either.
         panel.isMovable = false
         panel.isMovableByWindowBackground = false

@@ -12,8 +12,8 @@ import java.util.List;
  * A narrow widget is the month; a wide one (a Fold opened up) adds an agenda of what is coming next.
  */
 public final class CalendarPainter {
-    static final int PAPER=Color.rgb(253,249,243),INK=Color.rgb(50,40,32),MUTED=Color.rgb(110,88,70),FAINT=Color.rgb(143,128,115),
-        LINE=Color.rgb(229,218,207),TODO=Color.rgb(200,105,61),TASK=Color.rgb(61,125,125),TODAY=Color.rgb(216,73,61),SUNDAY=Color.rgb(196,101,90);
+    static final int PAPER=Color.WHITE,INK=Color.rgb(50,40,32),MUTED=Color.rgb(110,88,70),FAINT=Color.rgb(143,128,115),
+        LINE=Color.rgb(234,227,220),TODO=Color.rgb(200,105,61),TASK=Color.rgb(61,125,125),TODAY=Color.rgb(216,73,61),SUNDAY=Color.rgb(196,101,90);
     private static final String[] DAYS={"월","화","수","목","금","토","일"};
 
     /** The colour of a bar: the item's colour laid thinly over the paper, like the tinted bars of the app, the panel and the Mac widget. */
