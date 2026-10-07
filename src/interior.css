@@ -1501,3 +1501,72 @@
   outline-offset: -3px;
   z-index: 3;
 }
+
+/* ───────── Mac app: the screens are tabs under one bar; the swipe pad stays on phones ───────── */
+.home-stage.mac .panel {
+  top: 56px;
+}
+.mac-tabs {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 70;
+  height: 56px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px;
+  background: #faf7f3;
+  border-bottom: 1px solid var(--line);
+}
+.mac-tab,
+.mac-new {
+  height: 36px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  transition:
+    background 0.2s,
+    transform 0.2s var(--teo-spring);
+}
+.mac-tab {
+  padding: 0 16px;
+  background: transparent;
+  color: var(--muted);
+}
+.mac-tab:hover {
+  background: #f3ebe2;
+  color: var(--ink);
+}
+.mac-tab[aria-current="page"] {
+  background: #efe3d6;
+  color: var(--ink-strong);
+}
+.mac-new {
+  margin-left: auto;
+  padding: 0 16px 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--ink);
+  color: #fff;
+}
+.mac-new svg {
+  width: 18px;
+  height: 18px;
+}
+.mac-tab:active,
+.mac-new:active {
+  transform: scale(0.95);
+}
+.mac-tab:focus-visible,
+.mac-new:focus-visible {
+  outline: 3px solid #947256;
+  outline-offset: 2px;
+}
+.home-stage.mac .calendar-information-panel,
+.home-stage.mac .calendar-timeline-panel {
+  max-height: calc(100dvh - 80px);
+}

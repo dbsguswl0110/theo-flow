@@ -33,16 +33,19 @@ export function ScreenHeader({
   subtitle?: string;
   tone: Tone;
   backLabel: string;
-  onBack: () => void;
+  /** Left out where the screen is a tab of its own (the Mac app), so there is nothing to go back to. */
+  onBack?: () => void;
   count?: number;
   actions?: ReactNode;
   disabled?: boolean;
 }) {
   return (
     <header className={`tc-header tone-${tone}`}>
-      <button type="button" className="tc-back" aria-label={backLabel} disabled={disabled} onClick={onBack}>
-        ←
-      </button>
+      {onBack && (
+        <button type="button" className="tc-back" aria-label={backLabel} disabled={disabled} onClick={onBack}>
+          ←
+        </button>
+      )}
       <TypeSticker tone={tone} />
       <div className="tc-title">
         <h1>
