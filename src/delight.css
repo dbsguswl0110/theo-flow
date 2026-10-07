@@ -8,17 +8,6 @@
   --teo-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* Faint paw prints behind everything on the home stage. */
-.home-stage::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150' viewBox='0 0 150 150'%3E%3Cg fill='%23c9926e' fill-opacity='.09'%3E%3Cg transform='rotate(-16 36 40)'%3E%3Cellipse cx='36' cy='46' rx='8.5' ry='7'/%3E%3Ccircle cx='25' cy='34' r='3.8'/%3E%3Ccircle cx='32' cy='27' r='4'/%3E%3Ccircle cx='41' cy='27' r='4'/%3E%3Ccircle cx='48' cy='34' r='3.8'/%3E%3C/g%3E%3Cg transform='rotate(14 112 112)'%3E%3Cellipse cx='112' cy='118' rx='8.5' ry='7'/%3E%3Ccircle cx='101' cy='106' r='3.8'/%3E%3Ccircle cx='108' cy='99' r='4'/%3E%3Ccircle cx='117' cy='99' r='4'/%3E%3Ccircle cx='124' cy='106' r='3.8'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  background-size: 150px 150px;
-}
-
 /* ───────── TEO, the companion sitting behind the memo pad ───────── */
 .memo-anchor > .memo-pad {
   position: relative;
@@ -58,10 +47,6 @@
     inset 0 0 0 3px #f8dcc4,
     inset 0 0 0 4.5px rgba(255, 255, 255, 0.75),
     0 6px 10px rgba(120, 80, 50, 0.16);
-}
-.teo-companion.is-away {
-  opacity: 0;
-  transform: translateY(34px) scale(0.6);
 }
 .memo-anchor.is-focused .teo-companion {
   opacity: 0;
@@ -109,7 +94,53 @@
   }
 }
 
-/* ───────── The four icons: per-type colour, reach toward a swipe, catch on landing ───────── */
+/* ───────── The four targets: words on a tinted pill; per-type colour, glow toward a swipe, catch on landing ───────── */
+/* No artwork any more, so the box is only as wide as its word (these beat the icon-sized rules in styles.css and refinement.css). */
+.home-stage .theo-anchor {
+  width: auto;
+}
+.home-stage .theo-anchor .theo-button {
+  width: auto;
+  min-height: 38px;
+  margin: 0;
+  padding: 0 17px;
+  flex-direction: row;
+  justify-content: center;
+  gap: 0;
+  border-radius: 999px;
+}
+.home-stage .theo-anchor .theo-button::before {
+  inset: 0;
+  width: auto;
+  height: auto;
+  transform: none;
+  border-radius: 999px;
+}
+.home-stage .theo-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: #5d4437;
+}
+/* On a phone the side columns are only as wide as the paper leaves them. */
+@media (max-width: 679px) {
+  .home-stage .theo-anchor .theo-button {
+    min-height: 36px;
+    padding: 0 11px;
+  }
+  .home-stage .theo-label {
+    font-size: 12px;
+  }
+  .home-stage .theo-anchor .theo-count {
+    right: -4px;
+  }
+  .home-stage .note-position {
+    left: 34px;
+  }
+  .home-stage .task-position {
+    left: calc(100% - 34px);
+  }
+}
 .theo-button.theo-note::before {
   background: #fbe4e4;
   border-color: #f3cfcf;
@@ -126,11 +157,11 @@
   background: #fcebd9;
   border-color: #f2d8bd;
 }
-.theo-art-wrap {
+.theo-text {
   position: relative;
   z-index: 1;
   display: block;
-  transform-origin: 50% 80%;
+  transform-origin: 50% 50%;
   transition: transform 0.22s var(--teo-spring);
 }
 
@@ -141,7 +172,7 @@
   box-shadow:
     0 0 0 calc(min(var(--swipe, 0), 1) * 9px) var(--glow, #f5d7c155),
     0 8px 20px #9d6f5344;
-  transform: translateX(-50%) scale(calc(1 + min(var(--swipe, 0), 1) * 0.2));
+  transform: scale(calc(1 + min(var(--swipe, 0), 1) * 0.18));
 }
 .home-stage[data-swipe="note"] .note-position {
   --glow: #ec8fa04d;
@@ -155,15 +186,11 @@
   --glow: #7fb47c4d;
   --glow-bg: #d3e8cb;
 }
-/* The target reaches out to meet the paper. */
-.home-stage[data-swipe="note"] .note-position .theo-art-wrap {
-  transform: translateX(calc(min(var(--swipe, 0), 1) * 9px)) scale(calc(1 + min(var(--swipe, 0), 1) * 0.1));
-}
-.home-stage[data-swipe="task"] .task-position .theo-art-wrap {
-  transform: translateX(calc(min(var(--swipe, 0), 1) * -9px)) scale(calc(1 + min(var(--swipe, 0), 1) * 0.1));
-}
-.home-stage[data-swipe="todo"] .todo-position .theo-art-wrap {
-  transform: translateY(calc(min(var(--swipe, 0), 1) * 8px)) scale(calc(1 + min(var(--swipe, 0), 1) * 0.1));
+/* The word swells a little as the paper comes near. */
+.home-stage[data-swipe="note"] .note-position .theo-text,
+.home-stage[data-swipe="task"] .task-position .theo-text,
+.home-stage[data-swipe="todo"] .todo-position .theo-text {
+  transform: scale(calc(1 + min(var(--swipe, 0), 1) * 0.1));
 }
 /* The others politely step back. */
 .home-stage[data-swipe="note"] .theo-anchor:not(.note-position),
@@ -173,9 +200,9 @@
   transition: opacity 0.2s;
 }
 /* Past the threshold: it is ready to catch. */
-.home-stage[data-ready] .note-position .theo-art-wrap,
-.home-stage[data-ready] .task-position .theo-art-wrap,
-.home-stage[data-ready] .todo-position .theo-art-wrap {
+.home-stage[data-ready] .note-position .theo-text,
+.home-stage[data-ready] .task-position .theo-text,
+.home-stage[data-ready] .todo-position .theo-text {
   animation: teo-ready 0.5s ease-in-out infinite alternate;
 }
 .home-stage[data-ready="true"][data-swipe="note"] .note-position .theo-label,
@@ -185,15 +212,15 @@
 }
 @keyframes teo-ready {
   from {
-    rotate: -5deg;
+    rotate: -3deg;
   }
   to {
-    rotate: 5deg;
+    rotate: 3deg;
   }
 }
 
 /* Landing: squash on impact, hop, settle; the ring ripples outward. */
-.theo-button.accepted .theo-art-wrap {
+.theo-button.accepted .theo-text {
   animation: teo-munch 0.75s cubic-bezier(0.3, 0.7, 0.4, 1);
 }
 .theo-button.accepted::before {
@@ -234,8 +261,8 @@
 /* Count badge */
 .theo-count {
   position: absolute;
-  top: 0;
-  right: -5px;
+  top: -8px;
+  right: -7px;
   z-index: 3;
   min-width: 20px;
   height: 20px;
@@ -501,14 +528,14 @@
 
 /* ───────── Calm mode: no hopping, no confetti, no staggered entrances ───────── */
 .home-stage.quiet .teo-sprite,
-.home-stage.quiet .theo-art-wrap,
+.home-stage.quiet .theo-text,
 .home-stage.quiet .theo-count,
 .home-stage.quiet .theo-button::before {
   animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
   .teo-sprite,
-  .theo-art-wrap,
+  .theo-text,
   .theo-count,
   .toast,
   .calendar-information-card,
@@ -517,7 +544,7 @@
     animation: none !important;
   }
   .teo-companion,
-  .theo-art-wrap {
+  .theo-text {
     transition: none;
   }
 }

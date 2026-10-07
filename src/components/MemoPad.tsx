@@ -31,7 +31,6 @@ export default function MemoPad({
   onBlurFocus,
   onRegister,
   quiet,
-  active,
   onSwipePreview,
   companion,
 }: {
@@ -40,7 +39,6 @@ export default function MemoPad({
   onBlurFocus: () => void;
   onRegister: (type: ItemType, draft: DraftItem) => Promise<boolean>;
   quiet: boolean;
-  active: boolean;
   /** Rendered behind the paper's top edge (TEO). */
   companion?: ReactNode;
   /** Direction being dragged (null when it would not commit) and how far along it is: 0 to ~1.25. */
@@ -69,13 +67,6 @@ export default function MemoPad({
     setPhotoPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [draft.photo]);
-  useEffect(() => {
-    void controls.start({
-      scale: active ? 1 : 0,
-      opacity: active ? 1 : 0,
-      transition: { duration: quiet ? 0.1 : 0.45 },
-    });
-  }, [controls, active, quiet]);
 
   function returnHome() {
     return controls.start({
@@ -156,7 +147,7 @@ export default function MemoPad({
       {companion}
       <motion.section
         className="memo-pad"
-        initial={{ scale: 0, opacity: 0 }}
+        initial={false}
         animate={controls}
         style={{ x, y }}
         drag={!busy}

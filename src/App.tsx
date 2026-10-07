@@ -2,7 +2,6 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FloatingTheo from "./components/FloatingTheo";
 import MemoPad from "./components/MemoPad";
-import Startup from "./components/Startup";
 import CalendarView from "./components/CalendarView";
 import ItemDetail from "./components/ItemDetail";
 import Collection from "./components/Collection";
@@ -83,8 +82,6 @@ export default function App() {
     void back;
     navigate(kind);
   }
-  const [intro, setIntro] = useState(true);
-  const [introRevealed, setIntroRevealed] = useState(false);
   const [layout, setLayout] = useState(
     () => localStorage.getItem("theo-layout") || "auto",
   );
@@ -163,13 +160,6 @@ export default function App() {
       pending.current--;
     }
   }
-  const finishIntro = useCallback(() => setIntro(false), []);
-  const revealIntro = useCallback(() => setIntroRevealed(true), []);
-  useEffect(() => {
-    stage.current
-      ?.querySelectorAll(".utility-bar,.spatial-home,.home-caption")
-      .forEach((el) => el.toggleAttribute("inert", intro));
-  }, [intro]);
   const notify = (message: string) => {
     setToast(message);
     clearTimeout(toastTimer.current);
@@ -178,9 +168,6 @@ export default function App() {
       setAccepted("");
     }, 2300);
   };
-  useEffect(() => {
-    if (reduce) setIntro(false);
-  }, [reduce]);
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) =>
       setSize({ w: entry.contentRect.width, h: entry.contentRect.height }),
@@ -320,8 +307,6 @@ export default function App() {
     const openFromWidget = (event: Event) => {
       const link = (event as CustomEvent<string>).detail;
       if (!["calendar", "note", "task", "todo", "new-note"].includes(link)) return;
-      // Opened from a widget: skip the launch animation and go straight to the destination.
-      setIntro(false);
       const mode = link === "new-note" ? "note" : link;
       if (link === "new-note") setPendingCompose("note");
       // The Android shell re-sends the link a few times while the page loads; one visit is enough.
@@ -399,7 +384,7 @@ export default function App() {
         style={{ height: viewportHeight }}
         data-swipe={swipePreview || undefined}
         data-ready={swipeReady || undefined}
-        className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""} ${intro && !introRevealed ? "intro-waiting" : ""}`}
+        className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""}`}
       >
         <header className="utility-bar">
           <span className="wordmark" aria-hidden="true" />
@@ -413,7 +398,7 @@ export default function App() {
             kind="note"
             label="Note"
             className="note-position"
-            quiet={noMotion || intro}
+            quiet={noMotion}
             accepted={accepted === "note"}
             pulse={landed.note || 0}
             count={stats.note}
@@ -423,7 +408,7 @@ export default function App() {
             kind="task"
             label="Task"
             className="task-position"
-            quiet={noMotion || intro}
+            quiet={noMotion}
             accepted={accepted === "task"}
             pulse={landed.task || 0}
             count={stats.task}
@@ -433,7 +418,7 @@ export default function App() {
             kind="todo"
             label="Todo"
             className="todo-position"
-            quiet={noMotion || intro}
+            quiet={noMotion}
             accepted={accepted === "todo"}
             pulse={landed.todo || 0}
             count={stats.todo}
@@ -443,7 +428,7 @@ export default function App() {
             kind="calendar"
             label="Calendar"
             className="calendar-position"
-            quiet={noMotion || intro}
+            quiet={noMotion}
             accepted={false}
             count={stats.today}
             onClick={openCalendar}
@@ -460,7 +445,6 @@ export default function App() {
             />
           )}
           <MemoPad
-            active={!intro || introRevealed}
             focused={focused}
             onFocus={() => setFocused(true)}
             onBlurFocus={() => setFocused(false)}
@@ -469,7 +453,6 @@ export default function App() {
             quiet={noMotion}
             companion={
               <TeoCompanion
-                active={!intro || introRevealed}
                 quiet={noMotion}
                 look={swipePreview}
                 ready={swipeReady}
@@ -561,12 +544,6 @@ export default function App() {
               }}
               sync={sync}
               onBack={navigateBack}
-              onReplayIntro={() => {
-                navigateBack();
-                setFocused(false);
-                setIntroRevealed(false);
-                setIntro(true);
-              }}
             />
           )}
           {selected && (
@@ -576,14 +553,6 @@ export default function App() {
               folders={folders}
               onClose={navigateBack}
               onSave={saveItem}
-            />
-          )}
-          {intro && (
-            <Startup
-              stage={stage}
-              onReveal={revealIntro}
-              onDone={finishIntro}
-              quiet={noMotion}
             />
           )}
         </AnimatePresence>

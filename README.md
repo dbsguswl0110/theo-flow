@@ -7,7 +7,7 @@ TEO is a spatial productivity app built around **Write → Swipe → Organise**.
 - Swipe up: Todo (project container)
 - Tap Calendar: morph into the shared timeline view
 
-The Fold-first UI keeps a compact Memo Pad in a four-way TEO layout on a plain cream-white background (no wallpaper). Opening the app plays a white-screen jelly birth → four drops → Theo faces → memo zoom-in sequence. The supplied navigation and pixel character sheets are included intact under `public/assets`; SVG viewports display the relevant artwork without the original sheet labels. Today is labelled Todo.
+The Fold-first UI keeps a compact Memo Pad in a four-way layout on a plain cream-white background (no wallpaper, no paw-print pattern). Opening the app shows the home screen at once, with no launch animation. Note, Task, Todo and Calendar are words on tinted pills (with a count badge), and TEO sits above the paper. The supplied navigation and pixel character sheets are included intact under `public/assets`; SVG viewports display the relevant artwork without the original sheet labels. Today is labelled Todo.
 
 Both folded and expanded screens use Todo above, Note left, Task right, Calendar below. The separate Project icon has been removed: Todo itself is the project container, with child Tasks that have title, content, start/due dates and completion. The toolbar contains only Trash and Setting. Automatic layout uses available width and aspect ratio, not pointer type; Setting also provides a manual override and reduced-motion option.
 
@@ -67,7 +67,7 @@ The installed bundle is `TEO.app`; after opening it once, add **TEO Flow Calenda
 
 ## macOS floating calendar panel
 
-`macos/TEOFlow/Panel` contains a separate native `TEO Calendar Panel.app` for keeping the calendar on the desktop. It intentionally does not open the web app or its launch animation: the panel is calendar-only and loads the same Todo/Task data from `/api/items`. It reloads every 60 seconds and on the refresh button; the footer shows when it last synced, and when a refresh fails the panel keeps the last data on screen and shows a "연결 확인 필요" notice instead of emptying the calendar (one malformed record never hides the others). Its glass surface uses a light 5% overlay with a native blurred HUD material, has no visible close button, and can be resized from the window edges.
+`macos/TEOFlow/Panel` contains a separate native `TEO Calendar Panel.app` for keeping the calendar on the desktop. It intentionally does not open the web app: the panel is calendar-only and loads the same Todo/Task data from `/api/items`. It reloads every 60 seconds and on the refresh button; the footer shows when it last synced, and when a refresh fails the panel keeps the last data on screen and shows a "연결 확인 필요" notice instead of emptying the calendar (one malformed record never hides the others). Its glass surface uses a light 5% overlay with a native blurred HUD material, has no visible close button, and can be resized from the window edges.
 
 Items are drawn like the web calendar and the Android widget: an item with a due date is one continuous bar per week (To Do orange, Task teal), an item without one is a dot and a title, and completed items stay visible but dimmed and struck through. A day with more items than fit shows "+n".
 
@@ -143,11 +143,10 @@ The layout tracks the browser visual viewport when the keyboard appears. The exp
 
 TEO, the apricot toy poodle, lives on the home screen. He sits on a small cushion behind the memo pad's top edge (`TeoCompanion`), drawn from transparent frames of the supplied character sheet (`public/assets/teo-sprites.webp`). Regenerate that sheet and `src/lib/teoSprites.generated.ts` with `python3 tools/extract_teo_sprites.py` (needs pillow, numpy, scipy); frame sequences live in `src/lib/teoSprites.ts`.
 
-- **Launch (about 2.8 s, skippable):** a drop falls onto a soft ground ring, squashes, springs back into a pearl and swells; the pearl crouches, then lets go of one bead per icon in turn. The beads swirl out along curved paths, slow into place and fade into the real icons as the screen is revealed. Every bead ends exactly on its icon and never overshoots (`tests/startup.spec.ts` samples every frame at four screen sizes). The timeline constants are at the top of `Startup.tsx`.
 - **Idle:** slow blinks, and every 7–15 s a scratch, paw lick, yawn or look around. After about 24 s without any touch he yawns, curls up and sleeps; any touch wakes him.
-- **While swiping:** the paper leans into the throw, shrinks slightly and the destination icon reaches out, glows and dims its neighbours in proportion to how far the swipe has gone (`--swipe` on the stage, 0 to 1). TEO looks toward the destination, and once the 65 px threshold is passed the icon wiggles and TEO cheers with his tongue out (a short haptic tick marks the moment).
-- **On landing:** the icon squashes, hops and ripples, a burst of hearts / stars / bones / paws flies out (`BurstLayer`), the badge count pops, TEO cheers, and the toast carries his face. The destination stays lit until the server has accepted the memo; a failed save returns the memo without celebrating.
-- **Counts and progress:** each icon shows a badge with open items (Note shows all notes; Calendar shows what is open today). Once anything is due today, the footer shows "오늘 done/total" as a bone-coloured meter; finishing the last item of the day triggers a bigger celebration once per day.
+- **While swiping:** the paper leans into the throw, shrinks slightly and the destination pill swells, glows and dims its neighbours in proportion to how far the swipe has gone (`--swipe` on the stage, 0 to 1). TEO looks toward the destination, and once the 65 px threshold is passed the word wiggles and TEO cheers with his tongue out (a short haptic tick marks the moment).
+- **On landing:** the word squashes, hops and ripples, a burst of hearts / stars / bones / paws flies out (`BurstLayer`), the badge count pops, TEO cheers, and the toast carries his face. The destination stays lit until the server has accepted the memo; a failed save returns the memo without celebrating.
+- **Counts and progress:** each pill shows a badge with open items (Note shows all notes; Calendar shows what is open today). Once anything is due today, the footer shows "오늘 done/total" as a bone-coloured meter; finishing the last item of the day triggers a bigger celebration once per day.
 - **Checking things off:** checkboxes pop, confetti bursts from the box and TEO cheers (calendar cards, the timeline, task details and child tasks).
 - **Petting:** tapping TEO sends hearts. Empty lists show him napping.
 - **Settings:** "진동 피드백" (default on, `navigator.vibrate`; the Android shell declares the `VIBRATE` permission) and "효과음" (default off, short synthesised tones). "움직임 줄이기" or the system reduced-motion setting turns off particles, hopping, cheering and entrance animations and keeps TEO on a single still frame.
@@ -160,7 +159,7 @@ npm run build
 npx playwright install chromium
 # Start Vite on port 5174 in a separate terminal:
 npm run dev -- --port 5174
-npx playwright test tests/flow.spec.ts tests/startup.spec.ts tests/delight.spec.ts
+npx playwright test tests/flow.spec.ts tests/delight.spec.ts tests/interior.spec.ts
 # With local Wrangler running on port 8787:
 node tests/api-smoke.mjs
 ```

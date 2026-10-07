@@ -566,20 +566,6 @@ input[type="checkbox"] {
   width: 18px;
   height: 18px;
 }
-.startup {
-  position: absolute;
-  inset: 0;
-  background: #fff;
-  z-index: 100;
-  overflow: hidden;
-}
-.skip-intro {
-  position: absolute;
-  right: 20px;
-  bottom: max(24px, env(safe-area-inset-bottom));
-  background: none;
-  padding: 12px;
-}
 @media (max-width: 359px) {
 .theo-anchor {
     width: 52px;

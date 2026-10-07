@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import TheoArt, { TheoKind } from "./TheoArt";
+import type { TheoKind } from "./TheoArt";
 export default function FloatingTheo({
   kind,
   label,
@@ -45,10 +45,9 @@ export default function FloatingTheo({
         }}
         whileTap={{ scale: 0.88 }}
       >
-        <span className="theo-art-wrap" key={accepted ? pulse : "rest"}>
-          <TheoArt kind={kind} />
+        <span className="theo-text" key={accepted ? pulse : "rest"}>
+          <span className="theo-label">{label}</span>
         </span>
-        <span className="theo-label">{label}</span>
         {count > 0 && (
           <span className="theo-count" key={count} aria-hidden="true">
             {count > 99 ? "99+" : count}

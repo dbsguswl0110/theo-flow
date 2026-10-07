@@ -40,8 +40,6 @@ async function mockApi(page: Page, seed: any[]) {
 async function ready(page: Page) {
   await page.setViewportSize({ width: 412, height: 915 });
   await page.goto("/");
-  await page.getByRole("button", { name: "건너뛰기" }).click();
-  await expect(page.locator(".startup")).toHaveCount(0);
   await page.waitForTimeout(600);
 }
 async function swipe(page: Page, card: ReturnType<Page["locator"]>, dx: number) {
@@ -55,13 +53,11 @@ async function swipe(page: Page, card: ReturnType<Page["locator"]>, dx: number) 
   await page.mouse.up();
 }
 
-test("the widget plus link skips the intro and opens a ready-to-write Note composer", async ({ page }) => {
+test("the widget plus link opens a ready-to-write Note composer", async ({ page }) => {
   await mockApi(page, []);
   await page.setViewportSize({ width: 412, height: 915 });
   await page.goto("/");
-  await expect(page.locator(".startup")).toBeVisible();
   await page.evaluate(() => window.dispatchEvent(new CustomEvent("theo-widget-open", { detail: "new-note" })));
-  await expect(page.locator(".startup")).toHaveCount(0);
   await expect(page.locator(".collection-panel")).toHaveCount(1);
   await expect(page.locator(".inline-composer")).toBeVisible();
   await expect(page.locator(".inline-composer .memo-title")).toBeFocused();
@@ -308,4 +304,39 @@ test("the calendar is usable by keyboard and screen reader: roving focus, arrow 
   const target = new Date(dayKey(8) + "T00:00:00");
   target.setMonth(target.getMonth() + 1);
   await expect(page.locator(".tc-title h1")).toContainText(`${target.getFullYear()}년 ${target.getMonth() + 1}월`);
+});
+
+test("the home screen is ready at once: no launch animation, no paw-print backdrop, and the four targets are words only", async ({
+  page,
+}) => {
+  await mockApi(page, [{ ...base, id: "n1", type: "note", title: "메모" }]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  // Nothing sits over the home screen.
+  await expect(page.locator(".startup")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "건너뛰기" })).toHaveCount(0);
+  // The faint paw-print pattern is gone from the stage.
+  const backdrop = await page.locator(".home-stage").evaluate((el) => getComputedStyle(el, "::before").backgroundImage);
+  expect(backdrop).toBe("none");
+  // Note, Task, Todo and Calendar are labels on a tinted pill; the dog artwork is only above the paper.
+  for (const kind of ["note", "task", "todo", "calendar"]) {
+    const target = page.locator(`[data-target="${kind}"]`);
+    await expect(target.locator("svg, img")).toHaveCount(0);
+    await expect(target.locator(".theo-label")).toBeVisible();
+  }
+  await expect(page.locator(".teo-companion")).toBeVisible();
+  // The side targets fit inside the screen and clear of the paper, with their count badges.
+  const paper = (await page.locator(".memo-anchor").boundingBox())!;
+  for (const kind of ["note", "task"]) {
+    const box = (await page.locator(`[data-target="${kind}"] .theo-button`).boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(390);
+    const clear = kind === "note" ? paper.x - (box.x + box.width) : box.x - (paper.x + paper.width);
+    expect(clear).toBeGreaterThanOrEqual(0);
+  }
+  await expect(page.locator('[data-target="note"] .theo-count')).toHaveText("1");
+  // And the paper can be written on straight away.
+  const title = page.locator(".memo-pad").getByRole("textbox", { name: "제목", exact: true });
+  await title.fill("바로 쓰기");
+  await expect(title).toHaveValue("바로 쓰기");
 });
