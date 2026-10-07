@@ -7,6 +7,12 @@ on:
       - 'macos/**'
       - 'public/assets/teo-pixel-app-icon.png'
       - '.github/workflows/macos.yml'
+  # A pull request that touches the Mac code is built too, so a change that does not compile is seen before it merges.
+  pull_request:
+    paths:
+      - 'macos/**'
+      - 'public/assets/teo-pixel-app-icon.png'
+      - '.github/workflows/macos.yml'
   workflow_dispatch:
 
 permissions:
