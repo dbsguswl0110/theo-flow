@@ -1,0 +1,54 @@
+name: Mac apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'macos/**'
+      - 'public/assets/teo-pixel-app-icon.png'
+      - '.github/workflows/macos.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Apple Silicon runner; the apps target macOS 14 and up.
+    runs-on: macos-15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Build and package the apps
+        run: ./macos/package.sh
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-apps
+          path: |
+            artifacts/macos/TEO-Mac.dmg
+            artifacts/macos/TEO.zip
+            artifacts/macos/TEO-Calendar-Panel.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      # Opens the panel on the runner's desktop and takes a picture, so a build that compiles but cannot start shows up here.
+      - name: Start the panel and take a screenshot
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts/macos/shots
+          open "artifacts/macos/TEO Calendar Panel.app"
+          sleep 10
+          pgrep -fl TEOCalendarPanel
+          screencapture -x artifacts/macos/shots/panel.png
+          ls -l artifacts/macos/shots
+
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-panel-screenshot
+          path: artifacts/macos/shots/
+          if-no-files-found: ignore
