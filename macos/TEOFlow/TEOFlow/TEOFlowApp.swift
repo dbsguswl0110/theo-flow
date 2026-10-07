@@ -1,87 +1,53 @@
-import SwiftUI
-import WebKit
+import AppKit
 
-/// One widget tap. The id makes repeated taps on the same link distinct events.
-struct DeepLink: Equatable {
-    let id = UUID()
-    let mode: String
-}
-
+/// TEO is one app with no Dock icon: a menu bar icon, the web app in a window (the calendar first)
+/// and the calendar panel on the desktop. AppKit starts it directly so the menus and windows are all ours.
 @main
-struct TEOFlowApp: App {
-    @State private var deepLink: DeepLink?
-
-    var body: some Scene {
-        // A single window: widget links reuse it instead of opening another copy of the app.
-        Window("TEO Flow", id: "main") {
-            WebContainer(
-                url: URL(string: "https://theo-flow.dbsguswl0110.workers.dev/")!,
-                deepLink: deepLink
-            )
-                .frame(minWidth: 520, minHeight: 560)
-                .onOpenURL { url in
-                    let mode = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-                    deepLink = DeepLink(mode: mode)
-                }
-        }
-        // Wide enough for the month and the day's list side by side.
-        .defaultSize(width: 1000, height: 720)
-        .commands {
-            CommandGroup(replacing: .newItem) {}
-        }
+@MainActor
+enum TEOMain {
+    static func main() {
+        let app = NSApplication.shared
+        let delegate = AppDelegate()
+        app.delegate = delegate
+        // The delegate is held weakly by NSApplication, so keep it alive for as long as the app runs.
+        withExtendedLifetime(delegate) { app.run() }
     }
 }
 
-struct WebContainer: NSViewRepresentable {
-    let url: URL
-    let deepLink: DeepLink?
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let web = WebWindow()
+    private var panel: NSPanel?
+    private var statusItem: AppStatusItem?
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Info.plist says the same (LSUIElement); this keeps it true if the app is ever started another way.
+        NSApp.setActivationPolicy(.accessory)
+        NSApp.mainMenu = MainMenu.make()
+        PanelPreferences.registerDefaults()
+        let panel = PanelWindow.make(content: PanelCalendarView())
+        panel.orderFront(nil)
+        self.panel = panel
+        statusItem = AppStatusItem(panel: panel, web: web)
+        web.show()
     }
 
-    func makeNSView(context: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .default()
-        // The web app looks for this word to open on the calendar and leave the phone's swipe pad out.
-        configuration.applicationNameForUserAgent = "TEOFlowMac"
-        let view = WKWebView(frame: .zero, configuration: configuration)
-        view.allowsBackForwardNavigationGestures = true
-        view.setValue(false, forKey: "drawsBackground")
-        view.navigationDelegate = context.coordinator
-        context.coordinator.webView = view
-        view.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData))
-        return view
+    // Widget links: teoflow://calendar, teoflow://note, teoflow://new-note ...
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls where url.scheme == "teoflow" {
+            let mode = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+            web.show(link: mode)
+        }
     }
 
-    func updateNSView(_ view: WKWebView, context: Context) {
-        context.coordinator.webView = view
-        // Compare link ids, not modes: tapping the same widget link twice must navigate twice.
-        if let deepLink, !deepLink.mode.isEmpty, context.coordinator.lastLinkID != deepLink.id {
-            context.coordinator.lastLinkID = deepLink.id
-            context.coordinator.pendingMode = deepLink.mode
-            context.coordinator.dispatchPendingIfReady()
-        }
-        guard view.url?.host != url.host else { return }
-        view.load(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData))
+    // Opening TEO again (Finder, Spotlight) brings the web window back.
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        web.show()
+        return false
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        weak var webView: WKWebView?
-        var lastLinkID: UUID?
-        var pendingMode: String?
-        var isReady = false
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            isReady = true
-            dispatchPendingIfReady()
-        }
-
-        func dispatchPendingIfReady() {
-            guard isReady, let mode = pendingMode, let webView else { return }
-            pendingMode = nil
-            let escaped = mode.replacingOccurrences(of: "'", with: "")
-            webView.evaluateJavaScript("window.dispatchEvent(new CustomEvent('theo-widget-open',{detail:'\(escaped)'}));")
-        }
+    // Closing the web window must not end the app: the panel stays on the desktop.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 }

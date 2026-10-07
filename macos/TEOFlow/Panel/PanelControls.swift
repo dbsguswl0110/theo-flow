@@ -15,6 +15,8 @@ final class HandleView: NSView {
     private var startOrigin: NSPoint = .zero
 
     override var mouseDownCanMoveWindow: Bool { false }
+    // The grip works on the first click even when the panel is not the active window.
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func draw(_ dirtyRect: NSRect) {
         // Keep the grip visible against both light and dark desktop backgrounds.

@@ -26,7 +26,7 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Build and package the apps
+      - name: Build and package the app
         run: ./macos/package.sh
 
       - name: Upload installers
@@ -36,37 +36,36 @@ jobs:
           path: |
             artifacts/macos/TEO-Mac.dmg
             artifacts/macos/TEO.zip
-            artifacts/macos/TEO-Calendar-Panel.zip
           if-no-files-found: error
           retention-days: 30
 
-      # Opens the panel on the runner's desktop and takes a picture, so a build that compiles but cannot start shows up here.
-      - name: Start the panel and take a screenshot
+      # Installs and starts TEO the way a user would, then reports what macOS makes of it:
+      # whether it has no Dock icon, which layer each window sits on (the panel should be at the desktop-icon layer,
+      # the web window at the normal one) and whether the widget is registered.
+      - name: Start TEO and look at its windows
         continue-on-error: true
         run: |
           mkdir -p artifacts/macos/shots
-          open "artifacts/macos/TEO Calendar Panel.app"
-          sleep 10
-          pgrep -fl TEOCalendarPanel
-          screencapture -x artifacts/macos/shots/panel.png
-          ls -l artifacts/macos/shots
-
-      # The widget only shows up in the gallery if macOS registers its extension, so install the app and ask.
-      - name: Check that macOS registers the widget
-        continue-on-error: true
-        run: |
           cp -R artifacts/macos/TEO.app /Applications/
           /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/TEO.app
           open /Applications/TEO.app
-          sleep 8
+          sleep 15
+          echo "--- process"
           pgrep -fl TEOFlow
+          echo "--- application type (UIElement means no Dock icon)"
+          lsappinfo list | grep -i -B3 -A12 "theo.flow.macos\"" | head -40 || true
+          echo "--- windows"
+          swift macos/tools/windows.swift TEO
+          echo "--- widget"
           pluginkit -mAvvv -i com.theo.flow.macos.widget
           codesign -d --entitlements - /Applications/TEO.app/Contents/PlugIns/TEOFlowWidget.appex
+          screencapture -x artifacts/macos/shots/desktop.png
+          ls -l artifacts/macos/shots
 
       - name: Upload screenshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mac-panel-screenshot
+          name: mac-screenshot
           path: artifacts/macos/shots/
           if-no-files-found: ignore

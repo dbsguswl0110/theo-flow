@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds the macOS executables from the checked-in sources (Apple Silicon, macOS 14+):
-#   ./macos/build.sh [host|widget|panel|all]
+#   ./macos/build.sh [host|widget|all]
+# The host app is the whole of TEO (menu bar icon, web window, desktop panel), so it takes the panel's files too.
 # Each target compiles every .swift file in its folders, so new files need no edits here.
 set -euo pipefail
 
@@ -18,17 +19,15 @@ build() {
 }
 
 case "${1:-all}" in
-  host) build TEOFlow -framework SwiftUI -framework WebKit "$SRC"/TEOFlow/*.swift ;;
+  host) build TEOFlow -framework SwiftUI -framework AppKit -framework WebKit "$SRC"/Shared/*.swift "$SRC"/Panel/*.swift "$SRC"/TEOFlow/*.swift ;;
   # A widget is an app extension: it starts at _NSExtensionMain, not at main.
   widget) build TEOFlowWidget -application-extension -Xlinker -e -Xlinker _NSExtensionMain -framework SwiftUI -framework WidgetKit "$SRC"/Shared/*.swift "$SRC"/TEOFlowWidget/*.swift ;;
-  panel) build TEOCalendarPanel -framework SwiftUI -framework AppKit "$SRC"/Shared/*.swift "$SRC"/Panel/*.swift ;;
   all)
     "$0" host
     "$0" widget
-    "$0" panel
     ;;
   *)
-    echo "usage: $0 [host|widget|panel|all]" >&2
+    echo "usage: $0 [host|widget|all]" >&2
     exit 2
     ;;
 esac
