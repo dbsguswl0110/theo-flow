@@ -18,12 +18,14 @@ struct TEOFlowApp: App {
                 url: URL(string: "https://theo-flow.dbsguswl0110.workers.dev/")!,
                 deepLink: deepLink
             )
-                .frame(minWidth: 420, minHeight: 680)
+                .frame(minWidth: 520, minHeight: 560)
                 .onOpenURL { url in
                     let mode = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
                     deepLink = DeepLink(mode: mode)
                 }
         }
+        // Wide enough for the month and the day's list side by side.
+        .defaultSize(width: 1000, height: 720)
         .commands {
             CommandGroup(replacing: .newItem) {}
         }
@@ -41,6 +43,8 @@ struct WebContainer: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
+        // The web app looks for this word to open on the calendar and leave the phone's swipe pad out.
+        configuration.applicationNameForUserAgent = "TEOFlowMac"
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.allowsBackForwardNavigationGestures = true
         view.setValue(false, forKey: "drawsBackground")

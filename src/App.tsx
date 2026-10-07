@@ -7,9 +7,11 @@ import ItemDetail from "./components/ItemDetail";
 import Collection from "./components/Collection";
 import BurstLayer from "./components/BurstLayer";
 import Settings from "./components/Settings";
+import MacTabs from "./components/MacTabs";
 import TeoCompanion from "./components/TeoCompanion";
 import TeoSprite from "./components/TeoSprite";
 import { dayKey } from "./lib/dates";
+import { HOME_SCREEN, isMacApp } from "./lib/platform";
 import { FACE } from "./lib/teoSprites";
 import {
   burst,
@@ -48,9 +50,9 @@ export default function App() {
   const [pendingCompose, setPendingCompose] = useState<string | null>(null);
   const [landed, setLanded] = useState<Record<string, number>>({});
   const [prefs, setPrefs] = useState(getFeedbackPrefs);
-  const [screen, setScreen] = useState("");
+  const [screen, setScreen] = useState(HOME_SCREEN);
   const routeStack = useRef<Array<{ screen: string; selectedId: string | null }>>([
-    { screen: "", selectedId: null },
+    { screen: HOME_SCREEN, selectedId: null },
   ]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   // Mirrors the committed route so repeated widget deep links do not stack duplicate history entries.
@@ -69,7 +71,7 @@ export default function App() {
   function navigateBack() {
     if (routeStack.current.length > 1) window.history.back();
     else {
-      setScreen("");
+      setScreen(HOME_SCREEN);
       setSelectedId(null);
     }
   }
@@ -119,7 +121,7 @@ export default function App() {
   useEffect(() => {
     const current = window.history.state || {};
     window.history.replaceState(
-      { ...current, theoRoute: "", selectedId: null },
+      { ...current, theoRoute: HOME_SCREEN, selectedId: null },
       "",
       window.location.href,
     );
@@ -129,7 +131,7 @@ export default function App() {
       const state = event.state as
         | { theoRoute?: string; selectedId?: string | null }
         | null;
-      setScreen(state?.theoRoute ?? fallback?.screen ?? "");
+      setScreen(state?.theoRoute ?? fallback?.screen ?? HOME_SCREEN);
       setSelectedId(state?.selectedId ?? fallback?.selectedId ?? null);
       setFocused(false);
     };
@@ -303,6 +305,15 @@ export default function App() {
       setOrigin(`${b.x + b.width / 2 - a.x}px ${b.y + b.height / 2 - a.y}px`);
     navigate("calendar");
   }
+  // Mac app: the screens are tabs. Choosing the one that is open leaves it alone; otherwise it opens over the last.
+  function openTab(next: string) {
+    if (next === screenRef.current && !selectedRef.current) return;
+    navigate(next);
+  }
+  function composeNote() {
+    setPendingCompose("note");
+    if (screenRef.current !== "note" || selectedRef.current) navigate("note");
+  }
   useEffect(() => {
     const openFromWidget = (event: Event) => {
       const link = (event as CustomEvent<string>).detail;
@@ -384,105 +395,111 @@ export default function App() {
         style={{ height: viewportHeight }}
         data-swipe={swipePreview || undefined}
         data-ready={swipeReady || undefined}
-        className={`home-stage ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""}`}
+        className={`home-stage ${isMacApp ? "mac" : ""} ${expanded ? "expanded" : "folded"} ${noMotion ? "quiet" : ""} ${focused ? "is-writing" : ""}`}
       >
-        <header className="utility-bar">
-          <span className="wordmark" aria-hidden="true" />
-          <nav aria-label="메뉴">
-            <button onClick={() => navigate("trash")}>Trash</button>
-            <button onClick={() => navigate("settings")}>Setting</button>
-          </nav>
-        </header>
-        <div className="spatial-home">
-          <FloatingTheo
-            kind="note"
-            label="Note"
-            className="note-position"
-            quiet={noMotion}
-            accepted={accepted === "note"}
-            pulse={landed.note || 0}
-            count={stats.note}
-            onClick={() => openCollection("note")}
-          />
-          <FloatingTheo
-            kind="task"
-            label="Task"
-            className="task-position"
-            quiet={noMotion}
-            accepted={accepted === "task"}
-            pulse={landed.task || 0}
-            count={stats.task}
-            onClick={() => openCollection("task")}
-          />
-          <FloatingTheo
-            kind="todo"
-            label="Todo"
-            className="todo-position"
-            quiet={noMotion}
-            accepted={accepted === "todo"}
-            pulse={landed.todo || 0}
-            count={stats.todo}
-            onClick={() => openCollection("todo")}
-          />
-          <FloatingTheo
-            kind="calendar"
-            label="Calendar"
-            className="calendar-position"
-            quiet={noMotion}
-            accepted={false}
-            count={stats.today}
-            onClick={openCalendar}
-          />
-          {focused && (
-            <button
-              className="focus-overlay"
-              aria-label="작성 모드 닫기"
-              onClick={() => {
-                if (document.activeElement instanceof HTMLElement)
-                  document.activeElement.blur();
-                setFocused(false);
-              }}
-            />
-          )}
-          <MemoPad
-            focused={focused}
-            onFocus={() => setFocused(true)}
-            onBlurFocus={() => setFocused(false)}
-            onRegister={register}
-            onSwipePreview={handleSwipe}
-            quiet={noMotion}
-            companion={
-              <TeoCompanion
+        {/* The swipe pad is how a phone writes; the Mac app starts from the calendar and has tabs instead. */}
+        {!isMacApp && (
+          <>
+            <header className="utility-bar">
+              <span className="wordmark" aria-hidden="true" />
+              <nav aria-label="메뉴">
+                <button onClick={() => navigate("trash")}>Trash</button>
+                <button onClick={() => navigate("settings")}>Setting</button>
+              </nav>
+            </header>
+            <div className="spatial-home">
+              <FloatingTheo
+                kind="note"
+                label="Note"
+                className="note-position"
                 quiet={noMotion}
-                look={swipePreview}
-                ready={swipeReady}
-                cheerKey={cheerKey}
+                accepted={accepted === "note"}
+                pulse={landed.note || 0}
+                count={stats.note}
+                onClick={() => openCollection("note")}
               />
-            }
-          />
-        </div>
-        <footer className="home-caption">
-          {stats.todayTotal > 0 ? (
-            <span
-              className={`today-meter ${stats.todayDone === stats.todayTotal ? "is-complete" : ""}`}
-              role="progressbar"
-              aria-label="오늘 할 일"
-              aria-valuemin={0}
-              aria-valuemax={stats.todayTotal}
-              aria-valuenow={stats.todayDone}
-              aria-valuetext={`오늘 ${stats.todayTotal}개 중 ${stats.todayDone}개 완료`}
-            >
-              <span className="today-meter-track" aria-hidden="true">
-                <i style={{ width: `${(stats.todayDone / stats.todayTotal) * 100}%` }} />
-              </span>
-              <b>
-                오늘 {stats.todayDone}/{stats.todayTotal}
-              </b>
-            </span>
-          ) : (
-            "적고, 가볍게 보내세요."
-          )}
-        </footer>
+              <FloatingTheo
+                kind="task"
+                label="Task"
+                className="task-position"
+                quiet={noMotion}
+                accepted={accepted === "task"}
+                pulse={landed.task || 0}
+                count={stats.task}
+                onClick={() => openCollection("task")}
+              />
+              <FloatingTheo
+                kind="todo"
+                label="Todo"
+                className="todo-position"
+                quiet={noMotion}
+                accepted={accepted === "todo"}
+                pulse={landed.todo || 0}
+                count={stats.todo}
+                onClick={() => openCollection("todo")}
+              />
+              <FloatingTheo
+                kind="calendar"
+                label="Calendar"
+                className="calendar-position"
+                quiet={noMotion}
+                accepted={false}
+                count={stats.today}
+                onClick={openCalendar}
+              />
+              {focused && (
+                <button
+                  className="focus-overlay"
+                  aria-label="작성 모드 닫기"
+                  onClick={() => {
+                    if (document.activeElement instanceof HTMLElement)
+                      document.activeElement.blur();
+                    setFocused(false);
+                  }}
+                />
+              )}
+              <MemoPad
+                focused={focused}
+                onFocus={() => setFocused(true)}
+                onBlurFocus={() => setFocused(false)}
+                onRegister={register}
+                onSwipePreview={handleSwipe}
+                quiet={noMotion}
+                companion={
+                  <TeoCompanion
+                    quiet={noMotion}
+                    look={swipePreview}
+                    ready={swipeReady}
+                    cheerKey={cheerKey}
+                  />
+                }
+              />
+            </div>
+            <footer className="home-caption">
+              {stats.todayTotal > 0 ? (
+                <span
+                  className={`today-meter ${stats.todayDone === stats.todayTotal ? "is-complete" : ""}`}
+                  role="progressbar"
+                  aria-label="오늘 할 일"
+                  aria-valuemin={0}
+                  aria-valuemax={stats.todayTotal}
+                  aria-valuenow={stats.todayDone}
+                  aria-valuetext={`오늘 ${stats.todayTotal}개 중 ${stats.todayDone}개 완료`}
+                >
+                  <span className="today-meter-track" aria-hidden="true">
+                    <i style={{ width: `${(stats.todayDone / stats.todayTotal) * 100}%` }} />
+                  </span>
+                  <b>
+                    오늘 {stats.todayDone}/{stats.todayTotal}
+                  </b>
+                </span>
+              ) : (
+                "적고, 가볍게 보내세요."
+              )}
+            </footer>
+          </>
+        )}
+        {isMacApp && <MacTabs screen={screen} onOpen={openTab} onCompose={composeNote} />}
         <AnimatePresence>
           {toast && (
             <motion.div
@@ -502,11 +519,11 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
           {screen === "calendar" && (
             <CalendarView
               items={visible}
-              onClose={navigateBack}
+              onClose={isMacApp ? undefined : navigateBack}
               onSelect={selectItem}
               onSave={saveItem}
               onOpenNotes={() => openCollection("note", "calendar")}
@@ -521,7 +538,7 @@ export default function App() {
               folders={folders}
               onAddFolder={addFolder}
               items={items}
-              onClose={navigateBack}
+              onClose={isMacApp ? undefined : navigateBack}
               onSelect={selectItem}
               onSave={saveItem}
               autoCompose={pendingCompose === screen}
@@ -543,7 +560,7 @@ export default function App() {
                 setFeedbackPrefs(next);
               }}
               sync={sync}
-              onBack={navigateBack}
+              onBack={isMacApp ? undefined : navigateBack}
             />
           )}
           {selected && (

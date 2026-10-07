@@ -8,6 +8,7 @@ import { burst, celebrate, feedback } from "../lib/feedback";
 import MemoFields from "./MemoFields";
 import SwipeRow, { type SwipeAction } from "./SwipeRow";
 import { CheckIcon, EmptyState, PlusIcon, ScreenHeader, TrashIcon, UndoIcon, type Tone } from "./ui";
+import { isMacApp } from "../lib/platform";
 
 type Entry = {
   key: string;
@@ -20,6 +21,9 @@ type Entry = {
   dueDate: string | null;
   completed: boolean;
 };
+
+// Kinds that have a "new" button on their list (the Mac app has no swipe pad, so Todo needs one too).
+const CREATABLE = ["note", "task", "todo"];
 
 const COPY: Record<string, { title: string; line: string; empty: string; hint: string }> = {
   note: {
@@ -87,7 +91,7 @@ export default function Collection({
 }: {
   kind: string;
   items: CaptureItem[];
-  onClose: () => void;
+  onClose?: () => void;
   onSelect: (i: CaptureItem) => void;
   onSave: (i: CaptureItem) => Promise<boolean>;
   folders: string[];
@@ -110,7 +114,7 @@ export default function Collection({
   const [draft, setDraft] = useState<DraftItem>(emptyDraft);
   const [message, setMessage] = useState("");
   useEffect(() => {
-    if (!autoCompose || (kind !== "note" && kind !== "task")) return;
+    if (!autoCompose || !CREATABLE.includes(kind)) return;
     setComposing(true);
     onAutoComposed?.();
   }, [autoCompose, kind, onAutoComposed]);
@@ -371,7 +375,7 @@ export default function Collection({
         }
       />
 
-      {!trash && (kind === "note" || kind === "task") && (
+      {CREATABLE.includes(kind) && (
         <div className="tc-create">
           <button type="button" className="primary-btn collection-create" onClick={() => setComposing(!composing)}>
             <span aria-hidden="true">{composing ? "×" : <PlusIcon />}</span>
@@ -474,7 +478,7 @@ export default function Collection({
       )}
 
       {!entries.length && (
-        <EmptyState title={kind === "note" && folder !== "*" ? "이 폴더는 비어 있어요" : copy.empty} hint={copy.hint} />
+        <EmptyState title={kind === "note" && folder !== "*" ? "이 폴더는 비어 있어요" : copy.empty} hint={isMacApp && !trash ? `위의 '새 ${copy.title}' 버튼으로 만들어 보세요.` : copy.hint} />
       )}
       <div className="collection-list tc-list">
         <AnimatePresence initial>{open.map(renderEntry)}</AnimatePresence>

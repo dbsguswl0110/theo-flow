@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { ScreenHeader, Switch } from "./ui";
 import { feedback } from "../lib/feedback";
+import { isMacApp } from "../lib/platform";
 
 type Prefs = { haptics: boolean; sound: boolean };
 
@@ -21,7 +22,7 @@ export default function Settings({
   prefs: Prefs;
   onPrefs: (prefs: Prefs) => void;
   sync: string;
-  onBack: () => void;
+  onBack?: () => void;
 }) {
   return (
     <motion.section
@@ -92,7 +93,7 @@ export default function Settings({
           <li>
             <b>Note</b>는 달력 옆 목록에서 보고, 폴더로 나눌 수 있어요.
           </li>
-          <li>메모지를 위로 밀면 Todo, 왼쪽은 Note, 오른쪽은 Task가 돼요.</li>
+          {!isMacApp && <li>메모지를 위로 밀면 Todo, 왼쪽은 Note, 오른쪽은 Task가 돼요.</li>}
         </ul>
         <p className="tc-status">
           <i aria-hidden="true" />

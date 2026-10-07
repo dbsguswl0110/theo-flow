@@ -6,6 +6,7 @@ import { celebrate } from "../lib/feedback";
 import { FRAME } from "../lib/teoSprites";
 import TeoSprite from "./TeoSprite";
 import { ScreenHeader } from "./ui";
+import { isMacApp } from "../lib/platform";
 
 type CalendarEntry = CaptureItem & { sourceId?: string; isSubtask?: boolean };
 
@@ -143,7 +144,7 @@ export default function CalendarView({
   quiet,
 }: {
   items: CaptureItem[];
-  onClose: () => void;
+  onClose?: () => void;
   onSelect: (i: CaptureItem) => void;
   onSave: (i: CaptureItem) => Promise<boolean>;
   onOpenNotes: () => void;
@@ -308,7 +309,7 @@ export default function CalendarView({
         <div className="calendar-information-empty">
           <TeoSprite cell={FRAME.napping} size={72} />
           <p>{scope === "date" ? "이 날은 비어 있어요" : "아직 없어요"}</p>
-          <small>{scope === "date" ? "다른 날짜를 눌러 보세요." : "홈에서 메모지를 던져 보세요."}</small>
+          <small>{scope === "date" ? "다른 날짜를 눌러 보세요." : isMacApp ? "위의 새 메모 버튼으로 시작해 보세요." : "홈에서 메모지를 던져 보세요."}</small>
         </div>
       );
     }
