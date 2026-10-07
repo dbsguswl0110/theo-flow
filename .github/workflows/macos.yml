@@ -51,6 +51,18 @@ jobs:
           screencapture -x artifacts/macos/shots/panel.png
           ls -l artifacts/macos/shots
 
+      # The widget only shows up in the gallery if macOS registers its extension, so install the app and ask.
+      - name: Check that macOS registers the widget
+        continue-on-error: true
+        run: |
+          cp -R artifacts/macos/TEO.app /Applications/
+          /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/TEO.app
+          open /Applications/TEO.app
+          sleep 8
+          pgrep -fl TEOFlow
+          pluginkit -mAvvv -i com.theo.flow.macos.widget
+          codesign -d --entitlements - /Applications/TEO.app/Contents/PlugIns/TEOFlowWidget.appex
+
       - name: Upload screenshot
         if: always()
         uses: actions/upload-artifact@v4

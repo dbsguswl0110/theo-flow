@@ -77,7 +77,15 @@ The code is split by job: `PanelWindow` (the window), `PanelStatusItem` (menu ba
 
 The panel is floating and joins all Spaces. Window movement is deliberately restricted to the dotted grip at the end of the header button row; dragging the calendar body or the transparent title bar never moves the window, and the panel stays visible when another app is active. The initial panel size is 470×600 points with a 330×400 minimum. The weeks share the height the calendar has, so a six-week month never runs off the bottom, and more height (a taller panel, or the divider dragged down) fits more bars under each day number. Build the executable with `./macos/build.sh panel`; the app bundle's Info.plist is `macos/TEOFlow/Resources/TEOCalendarPanel-Info.plist`.
 
-The distributable archive is `artifacts/macos/TEO-Calendar-Panel.zip`. Open the app from `/Applications/TEO Calendar Panel.app`, then leave it running on the desktop as a lightweight calendar panel.
+### Installing on a Mac
+
+The **Mac apps** workflow (`.github/workflows/macos.yml`) builds both apps on a macOS runner for every change under `macos/` and for pull requests that touch it; run it by hand from the Actions tab when the last artifact has expired. Open the run and download the `mac-apps` artifact: `TEO-Mac.dmg` holds `TEO.app` (the host app with the widget inside) and `TEO Calendar Panel.app` beside an Applications shortcut, and the same two apps are also in `TEO.zip` and `TEO-Calendar-Panel.zip`. `./macos/package.sh` makes the same files on a Mac with Xcode (`artifacts/macos`).
+
+1. Open the DMG and drag both apps onto **Applications**.
+2. The apps are signed ad hoc (there is no Apple developer account behind them), so macOS refuses a downloaded copy the first time. Run once in Terminal: `xattr -dr com.apple.quarantine /Applications/TEO.app "/Applications/TEO Calendar Panel.app"` (or open the app, then allow it in *System Settings → Privacy & Security → Open Anyway*).
+3. Open **TEO** once, then add **TEO 캘린더** from the widget gallery. Open **TEO Calendar Panel** and leave it running; its menu bar icon controls it.
+
+An update is the same steps: quit the apps, replace them in Applications, open them again. Each build is signed afresh, so the first-open approval comes back, and a widget that was already on the desktop may need to be removed and added again.
 
 Build locally when Android Studio/SDK and Java 21 are installed:
 
