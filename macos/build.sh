@@ -19,7 +19,8 @@ build() {
 
 case "${1:-all}" in
   host) build TEOFlow -framework SwiftUI -framework WebKit "$SRC"/TEOFlow/*.swift ;;
-  widget) build TEOFlowWidget -framework SwiftUI -framework WidgetKit "$SRC"/Shared/*.swift "$SRC"/TEOFlowWidget/*.swift ;;
+  # A widget is an app extension: it starts at _NSExtensionMain, not at main.
+  widget) build TEOFlowWidget -application-extension -Xlinker -e -Xlinker _NSExtensionMain -framework SwiftUI -framework WidgetKit "$SRC"/Shared/*.swift "$SRC"/TEOFlowWidget/*.swift ;;
   panel) build TEOCalendarPanel -framework SwiftUI -framework AppKit "$SRC"/Shared/*.swift "$SRC"/Panel/*.swift ;;
   all)
     "$0" host
