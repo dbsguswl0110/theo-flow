@@ -12,7 +12,6 @@ export default function Settings({
   prefs,
   onPrefs,
   sync,
-  onReplayIntro,
   onBack,
 }: {
   layout: string;
@@ -22,7 +21,6 @@ export default function Settings({
   prefs: Prefs;
   onPrefs: (prefs: Prefs) => void;
   sync: string;
-  onReplayIntro: () => void;
   onBack: () => void;
 }) {
   return (
@@ -100,9 +98,6 @@ export default function Settings({
           <i aria-hidden="true" />
           데이터 상태: {sync}
         </p>
-        <button type="button" className="tc-soft-btn" onClick={onReplayIntro}>
-          시작 애니메이션 다시 보기
-        </button>
       </section>
     </motion.section>
   );

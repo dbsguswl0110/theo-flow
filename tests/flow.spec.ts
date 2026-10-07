@@ -24,8 +24,6 @@ test.beforeEach(async ({ page }) => {
 });
 async function ready(page: any) {
   await page.goto("/");
-  await page.getByRole("button", { name: "건너뛰기" }).click();
-  await expect(page.locator(".startup")).toHaveCount(0);
   await page.waitForTimeout(500);
 }
 async function throwMemo(page: any, title: string, dx: number, dy: number) {
@@ -229,9 +227,8 @@ test("permanent delete asks first and updates the trash in place", async ({
   await expect(page.getByRole("status")).toContainText("2개를 영구 삭제했어요");
   await expect(page.locator(".collection-card")).toHaveCount(1);
   await expect(page.locator(".collection-card")).toContainText("남는 메모");
-  // Staying on the trash screen means the page was not reloaded (no intro replay).
+  // Staying on the trash screen means the page was not reloaded.
   await expect(page.locator(".collection-panel")).toHaveCount(1);
-  await expect(page.locator(".startup")).toHaveCount(0);
   expect(deleted.sort()).toEqual(["t1", "t2"]);
 });
 test("keyboard viewport reserves classification icons and failed fling preserves draft", async ({

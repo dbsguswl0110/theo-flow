@@ -24,13 +24,11 @@ type Mood = "idle" | "happy" | "look" | "sleep";
  * cheers when something is saved, dozes off when nobody touches the screen and hops awake when they do.
  */
 export default function TeoCompanion({
-  active,
   quiet,
   look,
   ready,
   cheerKey,
 }: {
-  active: boolean;
   quiet: boolean;
   look: ItemType | null;
   ready: boolean;
@@ -66,7 +64,7 @@ export default function TeoCompanion({
 
   // Any touch wakes him; a long quiet spell sends him to sleep.
   useEffect(() => {
-    if (quiet || !active) return;
+    if (quiet) return;
     const touch = () => {
       lastTouch.current = Date.now();
       setAsleep(false);
@@ -80,7 +78,7 @@ export default function TeoCompanion({
       events.forEach((name) => window.removeEventListener(name, touch));
       window.clearInterval(watch);
     };
-  }, [active, quiet]);
+  }, [quiet]);
 
   useEffect(() => {
     if (cheerKey === 0 || quiet) return;
@@ -90,7 +88,7 @@ export default function TeoCompanion({
   }, [cheerKey, quiet]);
 
   useEffect(() => {
-    if (!active || quiet) {
+    if (quiet) {
       window.clearTimeout(timer.current);
       setFrame(FRAME.sit);
       return;
@@ -132,7 +130,7 @@ export default function TeoCompanion({
       window.clearTimeout(timer.current);
       window.clearTimeout(extra);
     };
-  }, [active, quiet, asleep, cheering, ready, look, play]);
+  }, [quiet, asleep, cheering, ready, look, play]);
 
   const pet = () => {
     const box = root.current?.getBoundingClientRect();
@@ -145,7 +143,7 @@ export default function TeoCompanion({
   return (
     <div
       ref={root}
-      className={`teo-companion ${active ? "" : "is-away"}`}
+      className="teo-companion"
       data-mood={mood}
       data-look={look || undefined}
       data-low={LOW_FRAMES.has(frame) || undefined}

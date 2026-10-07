@@ -33,12 +33,9 @@ async function mockApi(page: Page, seed: any[] = []) {
     } else await r.fulfill({ json: items });
   });
 }
-async function ready(page: Page, { intro = true } = {}) {
+async function ready(page: Page) {
   await page.setViewportSize({ width: 412, height: 915 });
   await page.goto("/");
-  // Calm mode bypasses the launch animation, so there is nothing to skip.
-  if (intro) await page.getByRole("button", { name: "건너뛰기" }).click();
-  await expect(page.locator(".startup")).toHaveCount(0);
   await page.waitForTimeout(700);
 }
 async function writeTitle(page: Page, title: string) {
@@ -139,7 +136,7 @@ test("finishing everything due today gets a bigger celebration, once", async ({ 
 test("reduced motion keeps TEO still and skips the particles", async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem("theo-quiet", "true"));
   await mockApi(page);
-  await ready(page, { intro: false });
+  await ready(page);
   await page.getByRole("button", { name: "TEO 쓰다듬기" }).click();
   await page.waitForTimeout(300);
   await expect(page.locator(".burst")).toHaveCount(0);
