@@ -34,6 +34,7 @@ struct PanelCalendarView: View {
     @AppStorage(PanelPreferences.showCompletedKey) private var showCompleted = true
     @AppStorage(PanelPreferences.showChecklistKey) private var showChecklist = true
     @AppStorage(PanelPreferences.calendarShareKey) private var calendarShare = PanelPreferences.defaultCalendarShare
+    @AppStorage(PanelPreferences.plateOpacityKey) private var plateOpacity = PanelPreferences.defaultPlateOpacity
 
     private let calendar = Calendar.current
 
@@ -50,8 +51,9 @@ struct PanelCalendarView: View {
             .background {
                 ZStack {
                     PanelVisualEffect()
-                    // A light plate over the blur: the brown text must read on any wallpaper, a dark or vivid one included.
-                    Color(red: 0.995, green: 0.985, blue: 0.965).opacity(0.86)
+                    // A light plate over the blur so the brown text reads on a dark or vivid wallpaper too.
+                    // How solid it is can be chosen in the menu bar menu (clear, normal, solid).
+                    Color(red: 0.995, green: 0.985, blue: 0.965).opacity(plateOpacity)
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
