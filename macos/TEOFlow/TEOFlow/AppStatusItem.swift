@@ -10,7 +10,7 @@ final class AppStatusItem: NSObject, NSMenuDelegate {
     private let completedItem: NSMenuItem
     private let checklistItem: NSMenuItem
     private let loginItem: NSMenuItem
-    private let plateItems: [NSMenuItem]
+    private let plateView = PlateSliderView()
     private let syncedItem: NSMenuItem
 
     init(panel: NSPanel, web: WebWindow) {
@@ -18,11 +18,6 @@ final class AppStatusItem: NSObject, NSMenuDelegate {
         self.web = web
         completedItem = NSMenuItem(title: "완료 항목 표시", action: #selector(AppStatusItem.toggleCompleted), keyEquivalent: "")
         checklistItem = NSMenuItem(title: "할 일 목록 표시", action: #selector(AppStatusItem.toggleChecklist), keyEquivalent: "")
-        plateItems = PanelPreferences.plateChoices.map { choice in
-            let item = NSMenuItem(title: choice.name, action: #selector(AppStatusItem.setPlate(_:)), keyEquivalent: "")
-            item.representedObject = choice.opacity
-            return item
-        }
         loginItem = NSMenuItem(title: "로그인할 때 열기", action: #selector(AppStatusItem.toggleLogin), keyEquivalent: "")
         syncedItem = NSMenuItem(title: "마지막 동기화 —", action: nil, keyEquivalent: "")
         super.init()
@@ -44,14 +39,11 @@ final class AppStatusItem: NSObject, NSMenuDelegate {
         menu.addItem(completedItem)
         checklistItem.target = self
         menu.addItem(checklistItem)
-        let plateMenu = NSMenu()
-        for item in plateItems {
-            item.target = self
-            plateMenu.addItem(item)
-        }
-        let plateParent = NSMenuItem(title: "패널 투명도", action: nil, keyEquivalent: "")
-        plateParent.submenu = plateMenu
-        menu.addItem(plateParent)
+        // The slider row, and a way back to the default.
+        let plateRow = NSMenuItem()
+        plateRow.view = plateView
+        menu.addItem(plateRow)
+        menu.addItem(item("불투명도 기본값으로 (\(Int(PanelPreferences.defaultPlateOpacity * 100))%)", #selector(AppStatusItem.resetPlate)))
         loginItem.target = self
         menu.addItem(loginItem)
         menu.addItem(NSMenuItem.separator())
@@ -72,11 +64,7 @@ final class AppStatusItem: NSObject, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         completedItem.state = PanelPreferences.showCompleted ? .on : .off
         checklistItem.state = PanelPreferences.showChecklist ? .on : .off
-        let plate = UserDefaults.standard.double(forKey: PanelPreferences.plateOpacityKey)
-        for item in plateItems {
-            let value = item.representedObject as? Double ?? 0
-            item.state = abs(value - plate) < 0.02 ? .on : .off
-        }
+        plateView.refresh()
         switch SMAppService.mainApp.status {
         case .enabled: loginItem.state = .on
         case .requiresApproval: loginItem.state = .mixed
@@ -110,10 +98,9 @@ final class AppStatusItem: NSObject, NSMenuDelegate {
         PanelPreferences.showChecklist.toggle()
     }
 
-    @objc private func setPlate(_ sender: NSMenuItem) {
-        if let value = sender.representedObject as? Double {
-            UserDefaults.standard.set(value, forKey: PanelPreferences.plateOpacityKey)
-        }
+    @objc private func resetPlate() {
+        PanelPreferences.plateOpacity = PanelPreferences.defaultPlateOpacity
+        plateView.refresh()
     }
 
     // Turns "open TEO when I log in" on or off. macOS may ask the user to approve it once in System Settings.
